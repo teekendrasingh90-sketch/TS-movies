@@ -44,7 +44,7 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
-  const BROWSER_URL = "https://www.1flex.nl/";
+  const BROWSER_URL = "https://streamex.sh";
 
   const movieServers = [
     { name: 'Server 1', host: 'vidsrc.to' },
@@ -234,8 +234,8 @@ export default function App() {
           <h1 className="text-[#004a99] text-3xl font-black tracking-tighter uppercase italic">Movies</h1>
           <div className="hidden md:flex gap-5 text-sm font-bold text-gray-600">
             <button className="hover:text-[#004a99] transition-colors">Home</button>
-            <button className="hover:text-[#004a99] transition-colors">Vacatures</button>
-            <button className="hover:text-[#004a99] transition-colors">Diensten</button>
+            <button className="hover:text-[#004a99] transition-colors">Movies</button>
+            <button className="hover:text-[#004a99] transition-colors">TV Shows</button>
           </div>
         </div>
         <div className="flex items-center gap-6">
@@ -414,19 +414,19 @@ export default function App() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-transparent" />
         
         <div className="absolute bottom-1/4 left-4 md:left-12 max-w-xl space-y-6">
-          <h2 className="text-5xl md:text-7xl font-bold drop-shadow-2xl text-white">Vind jouw droombaan</h2>
+          <h2 className="text-5xl md:text-7xl font-bold drop-shadow-2xl text-white">Stream de nieuwste films</h2>
           <p className="text-lg md:text-xl text-white drop-shadow-md">
-            Wij helpen je aan een baan die bij je past. Ontdek onze vacatures in diverse sectoren en start vandaag nog jouw nieuwe carrière.
+            Bekijk de nieuwste blockbusters, series en documentaires in de hoogste kwaliteit. Start vandaag nog met streamen.
           </p>
           <div className="flex gap-4">
             <button 
               onClick={() => setViewMode('browser')}
               className="flex items-center gap-2 bg-[#004a99] text-white px-8 py-3 rounded font-bold hover:bg-[#003d7a] transition-colors shadow-lg"
             >
-              <Search className="w-5 h-5" /> Bekijk Vacatures
+              <Search className="w-5 h-5" /> Bekijk Alles
             </button>
             <button className="flex items-center gap-2 bg-white/20 text-white px-8 py-3 rounded font-bold hover:bg-white/30 transition-colors backdrop-blur-md border border-white/30">
-              <Info className="w-5 h-5" /> Over Ons
+              <Info className="w-5 h-5" /> Meer Info
             </button>
           </div>
         </div>
@@ -789,7 +789,7 @@ export default function App() {
               {/* Simulated Ad Space */}
               <div className="hidden md:flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 px-4 py-1 rounded animate-pulse">
                 <span className="text-[10px] uppercase font-bold text-yellow-500 tracking-widest">Sponsored</span>
-                <p className="text-xs text-yellow-200/80">Premium Ad: Get 50% off on 1flex Pro today!</p>
+                <p className="text-xs text-yellow-200/80">Premium Ad: Get 50% off on Premium today!</p>
                 <ExternalLink className="w-3 h-3 text-yellow-500" />
               </div>
 
@@ -919,7 +919,7 @@ export default function App() {
         </div>
         <div className="flex flex-col gap-4">
           <button className="border border-gray-500 px-2 py-1 w-fit hover:text-white transition-colors">Service Code</button>
-          <p>© 1997-2026 1flex Browser, Inc.</p>
+          <p>© 1997-2026 Movies Platform, Inc.</p>
         </div>
       </footer>
 

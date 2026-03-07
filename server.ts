@@ -10,12 +10,13 @@ async function startServer() {
   app.use(express.json());
 
   // Proxy to bypass X-Frame-Options and fix relative paths
-  app.use('/proxy-onoflix', createProxyMiddleware({
+  const onoflixProxy = createProxyMiddleware({
     target: 'https://onoflix.live',
     changeOrigin: true,
     secure: false,
     followRedirects: true,
-    selfHandleResponse: true, // Necessary for interceptor
+    selfHandleResponse: true,
+    ws: true, // Enable WebSocket proxying
     pathRewrite: {
       '^/proxy-onoflix': '',
     },
@@ -23,25 +24,122 @@ async function startServer() {
       proxyReq: (proxyReq, req, res) => {
         proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         proxyReq.setHeader('referer', 'https://onoflix.live/');
-        proxyReq.setHeader('accept-encoding', 'identity'); // Disable compression for easier string replacement
+        proxyReq.setHeader('accept-encoding', 'identity');
       },
       proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
         // Remove security headers
         res.removeHeader('X-Frame-Options');
         res.removeHeader('Content-Security-Policy');
         res.removeHeader('Frame-Options');
+        res.removeHeader('content-security-policy-report-only');
+
+        // Rewrite Set-Cookie headers to remove Domain and Secure if needed
+        const setCookie = proxyRes.headers['set-cookie'];
+        if (setCookie) {
+          res.setHeader('set-cookie', setCookie.map(cookie => 
+            cookie.replace(/Domain=[^;]+;?/i, '')
+                  .replace(/Secure;?/i, '')
+                  .replace(/SameSite=[^;]+;?/i, 'SameSite=None')
+          ));
+        }
 
         const contentType = proxyRes.headers['content-type'];
         if (contentType && contentType.includes('text/html')) {
           let html = responseBuffer.toString('utf8');
-          // Inject <base> tag to fix relative paths
-          html = html.replace('<head>', '<head><base href="https://onoflix.live/">');
+          
+          // Inject script to intercept all requests and redirect them to our proxy
+          const injection = `
+            <script>
+              (function() {
+                // Frame-buster buster
+                try {
+                  if (window.top !== window.self) {
+                    window.top = window.self;
+                  }
+                } catch (e) {}
+                
+                const PROXY_PREFIX = '/proxy-onoflix';
+                const TARGET_DOMAIN = 'onoflix.live';
+
+                function wrapUrl(url) {
+                  if (!url) return url;
+                  if (typeof url !== 'string') return url;
+                  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
+                  
+                  if (url.startsWith(PROXY_PREFIX)) return url;
+                  
+                  try {
+                    const u = new URL(url, window.location.href);
+                    if (u.hostname === TARGET_DOMAIN || u.hostname.endsWith('.' + TARGET_DOMAIN)) {
+                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
+                    }
+                    if (u.origin === window.location.origin && !u.pathname.startsWith(PROXY_PREFIX)) {
+                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
+                    }
+                  } catch(e) {}
+                  
+                  return url;
+                }
+
+                const originalFetch = window.fetch;
+                window.fetch = function(input, init) {
+                  if (typeof input === 'string') {
+                    input = wrapUrl(input);
+                  } else if (input instanceof Request) {
+                    const newUrl = wrapUrl(input.url);
+                    input = new Request(newUrl, input);
+                  }
+                  return originalFetch.call(this, input, init);
+                };
+
+                const originalOpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                  return originalOpen.call(this, method, wrapUrl(url), ...args);
+                };
+
+                const originalCreateElement = document.createElement;
+                document.createElement = function(tagName, options) {
+                  const el = originalCreateElement.call(this, tagName, options);
+                  const tag = tagName.toLowerCase();
+                  if (tag === 'img' || tag === 'script' || tag === 'iframe' || tag === 'link' || tag === 'source' || tag === 'video' || tag === 'audio') {
+                    const attr = (tag === 'link') ? 'href' : 'src';
+                    const originalSetter = Object.getOwnPropertyDescriptor(el.constructor.prototype, attr) || 
+                                         Object.getOwnPropertyDescriptor(HTMLElement.prototype, attr);
+                    if (originalSetter && originalSetter.set) {
+                      Object.defineProperty(el, attr, {
+                        set: function(val) {
+                          originalSetter.set.call(this, wrapUrl(val));
+                        },
+                        get: function() {
+                          return originalSetter.get.call(this);
+                        },
+                        configurable: true
+                      });
+                    }
+                  }
+                  return el;
+                };
+              })();
+            </script>
+          `;
+          
+          // Replace paths in the HTML
+          html = html.replace(/(src|href|action)=["']\/(?!\/)/g, '$1="' + '/proxy-onoflix/');
+          
+          // Replace absolute URLs to the target domain
+          const domainRegex = /https?:\/\/(www\.)?onoflix\.live/gi;
+          html = html.replace(domainRegex, '/proxy-onoflix');
+          
+          html = html.replace('<head>', '<head>' + injection);
+          
           return html;
         }
         return responseBuffer;
       }),
     }
-  }));
+  });
+
+  app.use('/proxy-onoflix', onoflixProxy);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -57,8 +155,15 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  // Handle WebSocket upgrades
+  server.on('upgrade', (req, socket, head) => {
+    if (req.url?.startsWith('/proxy-onoflix')) {
+      onoflixProxy.upgrade(req, socket, head);
+    }
   });
 }
 

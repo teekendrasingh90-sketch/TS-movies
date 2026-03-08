@@ -235,6 +235,7 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
           />
         </div>
       </div>
@@ -798,7 +799,10 @@ export default function App() {
               </div>
 
               {/* Simulated Ad Space */}
-              <div className="hidden md:flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 px-4 py-1 rounded animate-pulse">
+              <div 
+                onClick={() => window.open('https://www.google.com', '_blank')}
+                className="hidden md:flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 px-4 py-1 rounded animate-pulse cursor-pointer hover:bg-yellow-500/20 transition-colors"
+              >
                 <span className="text-[10px] uppercase font-bold text-yellow-500 tracking-widest">Sponsored</span>
                 <p className="text-xs text-yellow-200/80">Premium Ad: Get 50% off on Premium today!</p>
                 <ExternalLink className="w-3 h-3 text-yellow-500" />
@@ -851,6 +855,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
+                      sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
                     />
                   )}
                   
@@ -880,7 +885,10 @@ export default function App() {
               <div className="hidden lg:flex w-64 bg-[#111] border-l border-white/10 flex-col p-4 space-y-6">
                 <div className="space-y-2">
                   <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Advertisement</span>
-                  <div className="aspect-[3/4] bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg p-4 flex flex-col justify-between">
+                  <div 
+                    onClick={() => window.open('https://www.google.com', '_blank')}
+                    className="aspect-[3/4] bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg p-4 flex flex-col justify-between cursor-pointer hover:brightness-110 transition-all"
+                  >
                     <h4 className="font-bold text-lg">Upgrade to Pro</h4>
                     <p className="text-xs text-white/70">Ad-free experience, 4K streaming, and early access to new apps.</p>
                     <button className="w-full bg-white text-black text-xs font-bold py-2 rounded">Learn More</button>

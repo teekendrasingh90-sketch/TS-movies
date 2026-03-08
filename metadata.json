@@ -1,5 +1,5 @@
 {
-  "name": "Movies",
-  "description": "De officiële Movies browser voor flexibel werken en vacatures.",
+  "name": "Onoflix",
+  "description": "A simple full-screen browser for Onoflix.",
   "requestFramePermissions": []
 }

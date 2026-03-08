@@ -44,6 +44,17 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
+  useEffect(() => {
+    if (viewMode === 'browser' || selectedItem) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [viewMode, selectedItem]);
+
   const BROWSER_URL = "https://streamex.sh";
 
   const movieServers = [
@@ -183,7 +194,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-[#333] font-sans selection:bg-[#004a99] selection:text-white overflow-x-hidden">
       {/* Browser View (Always in DOM but conditionally visible) */}
-      <div className={`fixed inset-0 z-[60] bg-white flex flex-col overflow-hidden transition-transform duration-500 ${viewMode === 'browser' ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed inset-0 z-[60] bg-white flex flex-col overflow-hidden transition-all duration-500 ${viewMode === 'browser' ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}>
         {/* Hidden Toggle for Admin/Portal - subtle interaction at the top */}
         <div className="absolute top-0 left-0 right-0 h-1 z-50 hover:h-12 group transition-all duration-300 flex items-center justify-center overflow-hidden">
           <div className="bg-[#004a99]/90 backdrop-blur-md px-6 py-2 rounded-full border border-white/20 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-6">

@@ -218,7 +218,7 @@ async function startServer() {
   // Handle WebSocket upgrades
   server.on('upgrade', (req, socket, head) => {
     if (req.url?.startsWith('/proxy-onoflix')) {
-      onoflixProxy.upgrade(req, socket, head);
+      (onoflixProxy as any).upgrade(req, socket, head);
     }
   });
 }

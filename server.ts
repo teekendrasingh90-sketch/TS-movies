@@ -81,6 +81,29 @@ async function startServer() {
     }
   });
 
+  const blockedDomains = [
+    'effectivegatecpm.com',
+    'doubleclick.net',
+    'googleadservices.com',
+    'googlesyndication.com',
+    'adnxs.com',
+    'adform.net',
+    'openx.net',
+    'pubmatic.com',
+    'rubiconproject.com',
+    'casalemedia.com',
+    'criteo.com',
+    'taboola.com',
+    'outbrain.com',
+    'popads.net',
+    'popcash.net',
+    'onclickads.net',
+    'ad-maven.com',
+    'propellerads.com',
+    'juicyads.com',
+    'exoclick.com'
+  ];
+
   // Proxy to bypass X-Frame-Options and fix relative paths
   const onoflixProxy = createProxyMiddleware({
     target: 'https://onoflix.live',
@@ -94,6 +117,13 @@ async function startServer() {
     },
     on: {
       proxyReq: (proxyReq, req, res) => {
+        // Ad blocker: check if the request is to a blocked domain
+        const url = req.url || '';
+        if (blockedDomains.some(domain => url.includes(domain))) {
+          proxyReq.destroy();
+          return;
+        }
+
         proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         proxyReq.setHeader('referer', 'https://onoflix.live/');
         proxyReq.setHeader('accept-encoding', 'identity');
@@ -121,7 +151,6 @@ async function startServer() {
           
           // Inject script to intercept all requests and redirect them to our proxy
           const injection = `
-            <script src="https://pl28894944.effectivegatecpm.com/c8/56/a1/c856a107f357b4bc0e76e3a1da68d0ad.js"></script>
             <script>
               (function() {
                 // Frame-buster buster
@@ -133,12 +162,39 @@ async function startServer() {
                 
                 const PROXY_PREFIX = '/proxy-onoflix';
                 const TARGET_DOMAIN = 'onoflix.live';
+                const BLOCKED_DOMAINS = [
+                  'effectivegatecpm.com',
+                  'doubleclick.net',
+                  'googleadservices.com',
+                  'googlesyndication.com',
+                  'adnxs.com',
+                  'adform.net',
+                  'openx.net',
+                  'pubmatic.com',
+                  'rubiconproject.com',
+                  'casalemedia.com',
+                  'criteo.com',
+                  'taboola.com',
+                  'outbrain.com',
+                  'popads.net',
+                  'popcash.net',
+                  'onclickads.net',
+                  'ad-maven.com',
+                  'propellerads.com',
+                  'juicyads.com',
+                  'exoclick.com'
+                ];
 
                 function wrapUrl(url) {
                   if (!url) return url;
                   if (typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
                   
+                  // Ad blocker check
+                  if (BLOCKED_DOMAINS.some(domain => url.includes(domain))) {
+                    return 'about:blank';
+                  }
+
                   if (url.startsWith(PROXY_PREFIX)) return url;
                   
                   try {

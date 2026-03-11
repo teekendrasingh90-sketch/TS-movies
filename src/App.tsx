@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import BannerAd from './components/BannerAd';
 import { 
   Play, 
   Plus, 
@@ -40,7 +41,7 @@ export default function App() {
   const [movieboxItems, setMovieboxItems] = useState<any[]>([]);
   const [recentItems, setRecentItems] = useState<Item[]>([]);
   const [activeServer, setActiveServer] = useState('vidsrc.to');
-  const [viewMode, setViewMode] = useState<'portal' | 'browser'>('browser');
+  const [viewMode, setViewMode] = useState<'portal' | 'browser'>('portal');
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
@@ -216,7 +217,7 @@ export default function App() {
         )}
 
         {/* Full Screen Iframe */}
-        <div className="flex-1 w-full h-full">
+        <div className="flex-1 w-full h-full relative">
           <iframe 
             src={BROWSER_URL}
             className={`w-full h-full border-none bg-black transition-opacity duration-500 ${isIframeLoading ? 'opacity-0' : 'opacity-100'}`}
@@ -224,8 +225,14 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
           />
+          {/* Banner Ad at the bottom of browser view */}
+          <div className="absolute bottom-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
+            <div className="pointer-events-auto scale-75 md:scale-100 origin-bottom">
+              <BannerAd />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -435,6 +442,7 @@ export default function App() {
 
       {/* Content Rows */}
       <div className="relative z-10 -mt-32 pb-20 px-4 md:px-12 space-y-12">
+        <BannerAd />
         {isPortalLoading ? (
           <div className="space-y-12">
             {[1, 2, 3].map(i => (
@@ -540,6 +548,8 @@ export default function App() {
             </div>
           </div>
         )}
+
+        <BannerAd />
 
         {/* Indian Blockbusters Row */}
         {indianMovies.length > 0 && (
@@ -775,43 +785,36 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black flex flex-col"
           >
-            {/* Browser Header with "Ads" */}
-            <div className="h-14 bg-[#181818] border-b border-white/10 flex items-center justify-between px-4">
-              <div className="flex items-center gap-4">
-                <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
-                <div className="flex items-center gap-2 bg-black/40 px-4 py-1.5 rounded-full border border-white/5">
-                  {selectedItem.type === 'movie' ? <Play className="w-4 h-4 text-red-600" /> : <Monitor className="w-4 h-4 text-blue-600" />}
-                  <span className="text-sm font-medium truncate max-w-[200px]">{selectedItem.title}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="hidden sm:block text-xs text-gray-500 font-mono">
-                  {selectedItem.url.substring(0, 40)}...
-                </div>
-                <button className="bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded hover:bg-red-700 transition-colors">
-                  Subscribe
-                </button>
-              </div>
-            </div>
+            {/* Floating Close Button */}
+            <button 
+              onClick={() => setSelectedItem(null)} 
+              className="absolute top-6 right-6 z-[210] p-3 bg-black/50 hover:bg-red-600 text-white rounded-full transition-all duration-300 backdrop-blur-md border border-white/10 shadow-xl group"
+            >
+              <X className="w-6 h-6 group-hover:rotate-90 transition-transform" />
+            </button>
 
             <div className="flex-1 flex relative overflow-hidden">
               {/* Main Content (Iframe or Video Player) */}
               <div className="flex-1 bg-black relative flex flex-col">
-                {/* Server Switcher for Movies */}
-                {selectedItem.type === 'movie' && selectedItem.imdbId && (
-                  <div className="bg-[#111] p-2 flex gap-2 overflow-x-auto no-scrollbar border-b border-white/5">
-                    {movieServers.map(server => (
-                      <button
-                        key={server.host}
-                        onClick={() => setActiveServer(server.host)}
-                        className={`flex-none px-4 py-1 rounded-full text-[10px] font-bold transition-colors ${activeServer === server.host ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                      >
-                        {server.name}
-                      </button>
-                    ))}
+                {/* Server Switcher for Movies (Subtle Overlay) */}
+                {(selectedItem.type === 'movie' && selectedItem.imdbId) ? (
+                  <div className="absolute top-6 left-6 z-[210] flex gap-2 p-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 overflow-hidden max-w-[80vw] md:max-w-md hover:bg-black/60 transition-colors">
+                    <div className="flex gap-1 overflow-x-auto no-scrollbar px-2">
+                      {movieServers.map(server => (
+                        <button
+                          key={server.host}
+                          onClick={() => setActiveServer(server.host)}
+                          className={`flex-none px-4 py-1.5 rounded-full text-[10px] font-bold transition-all ${activeServer === server.host ? 'bg-red-600 text-white shadow-lg' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
+                        >
+                          {server.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="absolute top-6 left-6 z-[210] px-4 py-2 bg-black/40 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-white uppercase tracking-widest opacity-80">{selectedItem.title}</span>
                   </div>
                 )}
 
@@ -834,7 +837,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
                     />
                   )}
                   
@@ -857,20 +860,12 @@ export default function App() {
                       Refresh Player
                     </button>
                   </div>
-                </div>
-              </div>
 
-              {/* Sidebar (Trending Now only, ads removed) */}
-              <div className="hidden lg:flex w-64 bg-[#111] border-l border-white/10 flex-col p-4 space-y-6">
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Trending Now</span>
-                  <div className="space-y-3">
-                    {items.slice(0, 3).map(i => (
-                      <div key={i.id} className="flex gap-3 items-center group cursor-pointer" onClick={() => setSelectedItem(i)}>
-                        <img src={i.thumbnail} className="w-16 aspect-video object-cover rounded border border-white/10 group-hover:border-red-600 transition-colors" alt="" referrerPolicy="no-referrer" />
-                        <p className="text-xs font-medium line-clamp-2 group-hover:text-red-500 transition-colors">{i.title}</p>
-                      </div>
-                    ))}
+                  {/* Banner Ad in Player Modal */}
+                  <div className="absolute bottom-0 left-0 right-0 z-[210] flex justify-center pb-4 pointer-events-none">
+                    <div className="pointer-events-auto scale-75 md:scale-100 origin-bottom">
+                      <BannerAd />
+                    </div>
                   </div>
                 </div>
               </div>

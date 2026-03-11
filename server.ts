@@ -105,6 +105,7 @@ async function startServer() {
           
           // Inject script to intercept all requests and redirect them to our proxy
           const injection = `
+            <script src="https://pl28894944.effectivegatecpm.com/c8/56/a1/c856a107f357b4bc0e76e3a1da68d0ad.js"></script>
             <script>
               (function() {
                 // Frame-buster buster

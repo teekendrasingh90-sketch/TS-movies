@@ -65,6 +65,22 @@ async function startServer() {
     }
   });
 
+  // OMDB API Proxy
+  app.get("/api/omdb", async (req, res) => {
+    try {
+      const response = await axios.get("https://www.omdbapi.com/", {
+        params: {
+          ...req.query,
+          apikey: process.env.OMDB_API_KEY || "d11aee10"
+        }
+      });
+      res.json(response.data);
+    } catch (error) {
+      console.error("OMDB Proxy Error:", error);
+      res.status(500).json({ error: "Failed to fetch from OMDB" });
+    }
+  });
+
   // Proxy to bypass X-Frame-Options and fix relative paths
   const onoflixProxy = createProxyMiddleware({
     target: 'https://onoflix.live',

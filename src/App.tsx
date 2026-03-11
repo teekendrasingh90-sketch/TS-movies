@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import BannerAd from './components/BannerAd';
 import { 
   Play, 
   Plus, 
@@ -103,7 +102,7 @@ export default function App() {
   const performSearch = async (query: string) => {
     setIsSearching(true);
     try {
-      const res = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(query)}&apikey=d11aee10`);
+      const res = await fetch(`/api/omdb?s=${encodeURIComponent(query)}`);
       const data = await res.json();
       if (data.Search) {
         setSearchResults(data.Search);
@@ -129,7 +128,7 @@ export default function App() {
     const titles = ["Avatar: The Way of Water", "Merlin", "The Boys", "Stranger Things", "Wednesday"];
     try {
       const moviePromises = titles.map(title => 
-        fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=d11aee10`).then(res => res.json())
+        fetch(`/api/omdb?t=${encodeURIComponent(title)}`).then(res => res.json())
       );
       const results = await Promise.all(moviePromises);
       setMovieboxItems(results.filter(m => m.Response === "True"));
@@ -142,7 +141,7 @@ export default function App() {
     const titles = ["RRR", "Pushpa: The Rise", "Pathaan", "Jawan", "Animal", "Kalki 2898 AD", "Salaar", "Brahmastra", "Leo", "Jailer"];
     try {
       const moviePromises = titles.map(title => 
-        fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=d11aee10`).then(res => res.json())
+        fetch(`/api/omdb?t=${encodeURIComponent(title)}`).then(res => res.json())
       );
       const results = await Promise.all(moviePromises);
       // Filter for valid movies from 2021-2026
@@ -217,7 +216,7 @@ export default function App() {
         )}
 
         {/* Full Screen Iframe */}
-        <div className="flex-1 w-full h-full">
+        <div className="flex-1 w-full h-full relative">
           <iframe 
             src={BROWSER_URL}
             className={`w-full h-full border-none bg-black transition-opacity duration-500 ${isIframeLoading ? 'opacity-0' : 'opacity-100'}`}
@@ -225,442 +224,444 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
           />
         </div>
       </div>
 
-      {/* Navbar */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 px-4 md:px-12 py-4 flex items-center justify-between ${isScrolled ? 'bg-white shadow-md' : 'bg-transparent'}`}>
-        <div className="flex items-center gap-8">
-          <h1 className="text-[#004a99] text-3xl font-black tracking-tighter uppercase italic">Movies</h1>
-          <div className="hidden md:flex gap-5 text-sm font-bold text-gray-600">
-            <button className="hover:text-[#004a99] transition-colors">Home</button>
-            <button className="hover:text-[#004a99] transition-colors">Movies</button>
-            <button className="hover:text-[#004a99] transition-colors">TV Shows</button>
-          </div>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="relative flex items-center">
+      {/* Portal Content - Only render when in portal mode to prevent background scrolling */}
+      {viewMode === 'portal' && (
+        <div className="flex-1 overflow-y-auto h-full w-full">
+          {/* Navbar */}
+          <nav className={`fixed top-0 w-full z-50 transition-all duration-300 px-4 md:px-12 py-4 flex items-center justify-between ${isScrolled ? 'bg-white shadow-md' : 'bg-transparent'}`}>
+            <div className="flex items-center gap-8">
+              <h1 className="text-[#004a99] text-3xl font-black tracking-tighter uppercase italic">Movies</h1>
+              <div className="hidden md:flex gap-5 text-sm font-bold text-gray-600">
+                <button className="hover:text-[#004a99] transition-colors">Home</button>
+                <button className="hover:text-[#004a99] transition-colors">Movies</button>
+                <button className="hover:text-[#004a99] transition-colors">TV Shows</button>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="relative flex items-center">
+                <AnimatePresence>
+                  {showSearchOverlay && (
+                    <motion.input
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 200, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      autoFocus
+                      placeholder="Titles, people, genres"
+                      className="bg-black/80 border border-white/20 rounded-sm pl-9 pr-8 py-1.5 text-sm focus:outline-none focus:border-white transition-all w-full"
+                      value={searchQuery}
+                      onChange={(e) => handleSearchInput(e.target.value)}
+                    />
+                  )}
+                </AnimatePresence>
+                <Search 
+                  className={`w-5 h-5 cursor-pointer hover:text-gray-400 absolute left-2.5 transition-all ${showSearchOverlay ? 'text-white' : 'text-gray-300'}`} 
+                  onClick={() => {
+                    setShowSearchOverlay(!showSearchOverlay);
+                    if (showSearchOverlay) {
+                      setSearchQuery('');
+                      setSearchResults([]);
+                    }
+                  }}
+                />
+                {showSearchOverlay && (searchQuery || isSearching) && (
+                  <div className="absolute right-2.5 flex items-center gap-2">
+                    {isSearching && (
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                        className="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full"
+                      />
+                    )}
+                    {searchQuery && (
+                      <button 
+                        onClick={() => {setSearchQuery(''); setSearchResults([]);}}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Bell className="w-5 h-5 cursor-pointer hover:text-gray-400" />
+              <div className="relative group">
+                <div className="w-8 h-8 bg-[#004a99] rounded cursor-pointer flex items-center justify-center text-white">
+                  <User className="w-5 h-5" />
+                </div>
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100]">
+                  <div className="p-2 space-y-1">
+                    <button 
+                      onClick={() => setViewMode('browser')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                    >
+                      <Monitor className="w-4 h-4" /> App View
+                    </button>
+                    <button 
+                      onClick={() => setShowAdmin(!showAdmin)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                    >
+                      <LayoutGrid className="w-4 h-4" /> Admin Panel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          {/* Hero Section */}
+          <div className="relative h-[85vh] w-full overflow-hidden">
             <AnimatePresence>
               {showSearchOverlay && (
-                <motion.input
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 200, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  autoFocus
-                  placeholder="Titles, people, genres"
-                  className="bg-black/80 border border-white/20 rounded-sm pl-9 pr-8 py-1.5 text-sm focus:outline-none focus:border-white transition-all w-full"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                />
+                <motion.div 
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="absolute inset-0 z-40 bg-[#141414]/95 backdrop-blur-md pt-24 px-4 md:px-12 overflow-y-auto pb-20"
+                >
+                  <div className="max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                      <h2 className="text-2xl font-bold">
+                        {searchQuery ? `Results for "${searchQuery}"` : "Start typing to search..."}
+                      </h2>
+                      {isSearching && <span className="text-red-600 text-sm font-medium animate-pulse">Searching...</span>}
+                    </div>
+
+                    {searchResults.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                        {searchResults.map((movie) => (
+                          <motion.div 
+                            key={movie.imdbID}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ y: -10 }}
+                            className="relative group"
+                          >
+                            <div 
+                              className="aspect-[2/3] rounded-lg overflow-hidden cursor-pointer shadow-lg border border-white/5"
+                              onClick={() => {
+                                const item: Item = {
+                                  id: Math.random(),
+                                  title: movie.Title,
+                                  url: `https://vidsrc.to/embed/movie/${movie.imdbID}`,
+                                  thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/600',
+                                  type: 'movie',
+                                  category: 'Search Result',
+                                  imdbId: movie.imdbID
+                                };
+                                setSelectedItem(item);
+                                addToRecent(item);
+                              }}
+                            >
+                              <img 
+                                src={movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/600'} 
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                alt={movie.Title}
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                              
+                              <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNewItem({
+                                      title: movie.Title,
+                                      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(movie.Title + ' trailer')}`,
+                                      thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/600',
+                                      type: 'movie',
+                                      category: 'Added from Search'
+                                    });
+                                    setShowAdmin(true);
+                                  }}
+                                  className="mb-3 w-full bg-white text-black text-xs font-bold py-2 rounded flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" /> Add to Platform
+                                </button>
+                                <p className="font-bold text-sm leading-tight">{movie.Title}</p>
+                                <p className="text-xs text-gray-400 mt-1">{movie.Year} • {movie.Type}</p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : searchQuery.length > 2 && !isSearching ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                        <Search className="w-16 h-16 mb-4 opacity-20" />
+                        <p className="text-xl">No results found for "{searchQuery}"</p>
+                        <p className="text-sm mt-2">Try searching for something else or check your spelling.</p>
+                      </div>
+                    ) : !searchQuery && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 opacity-40">
+                        {[1,2,3].map(i => (
+                          <div key={i} className="aspect-video bg-white/5 rounded-xl animate-pulse" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
-            <Search 
-              className={`w-5 h-5 cursor-pointer hover:text-gray-400 absolute left-2.5 transition-all ${showSearchOverlay ? 'text-white' : 'text-gray-300'}`} 
-              onClick={() => {
-                setShowSearchOverlay(!showSearchOverlay);
-                if (showSearchOverlay) {
-                  setSearchQuery('');
-                  setSearchResults([]);
-                }
-              }}
+
+            <img 
+              src="https://picsum.photos/seed/office/1920/1080" 
+              className="absolute inset-0 w-full h-full object-cover"
+              alt="Hero Background"
+              referrerPolicy="no-referrer"
             />
-            {showSearchOverlay && (searchQuery || isSearching) && (
-              <div className="absolute right-2.5 flex items-center gap-2">
-                {isSearching && (
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full"
-                  />
-                )}
-                {searchQuery && (
-                  <button 
-                    onClick={() => {setSearchQuery(''); setSearchResults([]);}}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <Bell className="w-5 h-5 cursor-pointer hover:text-gray-400" />
-          <div className="relative group">
-            <div className="w-8 h-8 bg-[#004a99] rounded cursor-pointer flex items-center justify-center text-white">
-              <User className="w-5 h-5" />
-            </div>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100]">
-              <div className="p-2 space-y-1">
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-transparent" />
+            
+            <div className="absolute bottom-1/4 left-4 md:left-12 max-w-xl space-y-6">
+              <h2 className="text-5xl md:text-7xl font-bold drop-shadow-2xl text-white">Stream de nieuwste films</h2>
+              <p className="text-lg md:text-xl text-white drop-shadow-md">
+                Bekijk de nieuwste blockbusters, series en documentaires in de hoogste kwaliteit. Start vandaag nog met streamen.
+              </p>
+              <div className="flex gap-4">
                 <button 
                   onClick={() => setViewMode('browser')}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                  className="flex items-center gap-2 bg-[#004a99] text-white px-8 py-3 rounded font-bold hover:bg-[#003d7a] transition-colors shadow-lg"
                 >
-                  <Monitor className="w-4 h-4" /> App View
+                  <Search className="w-5 h-5" /> Bekijk Alles
                 </button>
-                <button 
-                  onClick={() => setShowAdmin(!showAdmin)}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
-                >
-                  <LayoutGrid className="w-4 h-4" /> Admin Panel
+                <button className="flex items-center gap-2 bg-white/20 text-white px-8 py-3 rounded font-bold hover:bg-white/30 transition-colors backdrop-blur-md border border-white/30">
+                  <Info className="w-5 h-5" /> Meer Info
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      </nav>
 
-      {/* Hero Section */}
-      <div className="relative h-[85vh] w-full overflow-hidden">
-        <AnimatePresence>
-          {showSearchOverlay && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute inset-0 z-40 bg-[#141414]/95 backdrop-blur-md pt-24 px-4 md:px-12 overflow-y-auto pb-20"
-            >
-              <div className="max-w-7xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-bold">
-                    {searchQuery ? `Results for "${searchQuery}"` : "Start typing to search..."}
-                  </h2>
-                  {isSearching && <span className="text-red-600 text-sm font-medium animate-pulse">Searching...</span>}
+          {/* Content Rows */}
+          <div className="relative z-10 -mt-32 pb-20 px-4 md:px-12 space-y-12">
+            {isPortalLoading ? (
+              <div className="space-y-12">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="space-y-4">
+                    <div className="h-8 w-48 bg-gray-300/20 rounded animate-pulse" />
+                    <div className="flex gap-4 overflow-hidden">
+                      {[1, 2, 3, 4, 5, 6].map(j => (
+                        <div key={j} className="flex-none w-40 md:w-56 aspect-[2/3] bg-gray-300/10 rounded-lg animate-pulse" />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Continue Watching Row */}
+                {recentItems.length > 0 && (
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                  {recentItems.map(item => (
+                    <motion.div 
+                      key={`recent-${item.id}`}
+                      whileHover={{ scale: 1.05, zIndex: 20 }}
+                      className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
+                      onClick={() => {
+                        setSelectedItem(item);
+                        addToRecent(item);
+                      }}
+                    >
+                      <img 
+                        src={item.thumbnail || `https://picsum.photos/seed/${item.id}/400/225`} 
+                        className="w-full h-full object-cover"
+                        alt={item.title}
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <div className="p-2 bg-white rounded-full text-black">
+                              <Play className="w-4 h-4 fill-black" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <p className="font-bold">{item.title}</p>
+                          <p className="text-xs text-green-500 font-semibold">Resume <span className="text-gray-400 border border-gray-400 px-1 ml-2 uppercase">{item.type}</span></p>
+                        </div>
+                      </div>
+                      {/* Progress bar simulation */}
+                      <div className="absolute bottom-0 left-0 h-1 bg-red-600" style={{ width: `${Math.floor(Math.random() * 60) + 20}%` }} />
+                    </motion.div>
+                  ))}
                 </div>
+            )}
 
-                {searchResults.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                    {searchResults.map((movie) => (
-                      <motion.div 
-                        key={movie.imdbID}
-                        layout
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        whileHover={{ y: -10 }}
-                        className="relative group"
-                      >
-                        <div 
-                          className="aspect-[2/3] rounded-lg overflow-hidden cursor-pointer shadow-lg border border-white/5"
-                          onClick={() => {
-                            const item: Item = {
-                              id: Math.random(),
-                              title: movie.Title,
-                              url: `https://vidsrc.to/embed/movie/${movie.imdbID}`,
-                              thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/600',
-                              type: 'movie',
-                              category: 'Search Result',
-                              imdbId: movie.imdbID
-                            };
-                            setSelectedItem(item);
-                            addToRecent(item);
-                          }}
-                        >
-                          <img 
-                            src={movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/600'} 
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            alt={movie.Title}
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
-                          
-                          <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60">
+            {/* Moviebox Integration Row */}
+            {movieboxItems.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  Aanbevolen Vacatures <ChevronRight className="w-5 h-5 text-gray-500" />
+                </h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                  {movieboxItems.map(movie => (
+                    <motion.div 
+                      key={`moviebox-${movie.imdbID}`}
+                      whileHover={{ scale: 1.05, zIndex: 20 }}
+                      className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
+                      onClick={() => {
+                        const item: Item = {
+                          id: Math.random(),
+                          title: movie.Title,
+                          url: `https://vidsrc.to/embed/movie/${movie.imdbID}`,
+                          thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/moviebox/400/225',
+                          type: 'movie',
+                          category: 'Moviebox',
+                          imdbId: movie.imdbID
+                        };
+                        setSelectedItem(item);
+                        addToRecent(item);
+                      }}
+                    >
+                      <img 
+                        src={movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/moviebox/400/225'} 
+                        className="w-full h-full object-cover"
+                        alt={movie.Title}
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <div className="p-2 bg-white rounded-full text-black">
+                              <Play className="w-4 h-4 fill-black" />
+                            </div>
+                            <div className="px-2 py-1 bg-red-600 text-[10px] font-bold rounded uppercase">Moviebox</div>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <p className="font-bold">{movie.Title}</p>
+                          <p className="text-xs text-gray-400">Stream via h5.aoneroom.com</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Indian Blockbusters Row */}
+            {indianMovies.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  Nieuwe Kansen <ChevronRight className="w-5 h-5 text-gray-500" />
+                </h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                  {indianMovies.map(movie => (
+                    <motion.div 
+                      key={movie.imdbID}
+                      whileHover={{ scale: 1.05, zIndex: 20 }}
+                      className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
+                      onClick={() => {
+                        const item: Item = {
+                          id: Math.random(),
+                          title: movie.Title,
+                          url: `https://vidsrc.to/embed/movie/${movie.imdbID}`,
+                          thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/225',
+                          type: 'movie',
+                          category: 'Indian Cinema',
+                          imdbId: movie.imdbID
+                        };
+                        setSelectedItem(item);
+                        addToRecent(item);
+                      }}
+                    >
+                      <img 
+                        src={movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/225'} 
+                        className="w-full h-full object-cover"
+                        alt={movie.Title}
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <div className="p-2 bg-white rounded-full text-black">
+                              <Play className="w-4 h-4 fill-black" />
+                            </div>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setNewItem({
                                   title: movie.Title,
                                   url: `https://www.youtube.com/results?search_query=${encodeURIComponent(movie.Title + ' trailer')}`,
-                                  thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/600',
+                                  thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/225',
                                   type: 'movie',
-                                  category: 'Added from Search'
+                                  category: 'Indian Cinema'
                                 });
                                 setShowAdmin(true);
                               }}
-                              className="mb-3 w-full bg-white text-black text-xs font-bold py-2 rounded flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-colors"
+                              className="p-2 border border-gray-400 rounded-full text-white hover:border-white"
                             >
-                              <Plus className="w-3 h-3" /> Add to Platform
+                              <Plus className="w-4 h-4" />
                             </button>
-                            <p className="font-bold text-sm leading-tight">{movie.Title}</p>
-                            <p className="text-xs text-gray-400 mt-1">{movie.Year} • {movie.Type}</p>
                           </div>
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : searchQuery.length > 2 && !isSearching ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                    <Search className="w-16 h-16 mb-4 opacity-20" />
-                    <p className="text-xl">No results found for "{searchQuery}"</p>
-                    <p className="text-sm mt-2">Try searching for something else or check your spelling.</p>
-                  </div>
-                ) : !searchQuery && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 opacity-40">
-                    {[1,2,3].map(i => (
-                      <div key={i} className="aspect-video bg-white/5 rounded-xl animate-pulse" />
-                    ))}
-                  </div>
-                )}
+                        <div className="mt-4">
+                          <p className="font-bold">{movie.Title}</p>
+                          <p className="text-xs text-green-500 font-semibold">99% Match <span className="text-gray-400 border border-gray-400 px-1 ml-2 uppercase">{movie.Year}</span></p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
 
-        <img 
-          src="https://picsum.photos/seed/office/1920/1080" 
-          className="absolute inset-0 w-full h-full object-cover"
-          alt="Hero Background"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-transparent" />
-        
-        <div className="absolute bottom-1/4 left-4 md:left-12 max-w-xl space-y-6">
-          <h2 className="text-5xl md:text-7xl font-bold drop-shadow-2xl text-white">Stream de nieuwste films</h2>
-          <p className="text-lg md:text-xl text-white drop-shadow-md">
-            Bekijk de nieuwste blockbusters, series en documentaires in de hoogste kwaliteit. Start vandaag nog met streamen.
-          </p>
-          <div className="flex gap-4">
-            <button 
-              onClick={() => setViewMode('browser')}
-              className="flex items-center gap-2 bg-[#004a99] text-white px-8 py-3 rounded font-bold hover:bg-[#003d7a] transition-colors shadow-lg"
-            >
-              <Search className="w-5 h-5" /> Bekijk Alles
-            </button>
-            <button className="flex items-center gap-2 bg-white/20 text-white px-8 py-3 rounded font-bold hover:bg-white/30 transition-colors backdrop-blur-md border border-white/30">
-              <Info className="w-5 h-5" /> Meer Info
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Rows */}
-      <div className="relative z-10 -mt-32 pb-20 px-4 md:px-12 space-y-12">
-        <BannerAd />
-        {isPortalLoading ? (
-          <div className="space-y-12">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-4">
-                <div className="h-8 w-48 bg-gray-300/20 rounded animate-pulse" />
-                <div className="flex gap-4 overflow-hidden">
-                  {[1, 2, 3, 4, 5, 6].map(j => (
-                    <div key={j} className="flex-none w-40 md:w-56 aspect-[2/3] bg-gray-300/10 rounded-lg animate-pulse" />
+            {categories.map(category => (
+              <div key={category} className="space-y-4">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  {category} <ChevronRight className="w-5 h-5 text-gray-500" />
+                </h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                  {items.filter(i => i.category === category).map(item => (
+                    <motion.div 
+                      key={item.id}
+                      whileHover={{ scale: 1.05, zIndex: 20 }}
+                      className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
+                      onClick={() => {
+                        setSelectedItem(item);
+                        addToRecent(item);
+                      }}
+                    >
+                      <img 
+                        src={item.thumbnail || `https://picsum.photos/seed/${item.id}/400/225`} 
+                        className="w-full h-full object-cover"
+                        alt={item.title}
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <div className="p-2 bg-white rounded-full text-black">
+                              <Play className="w-4 h-4 fill-black" />
+                            </div>
+                            <div className="p-2 border border-gray-400 rounded-full text-white hover:border-white">
+                              <Plus className="w-4 h-4" />
+                            </div>
+                          </div>
+                          <div className="p-2 border border-gray-400 rounded-full text-white hover:border-white">
+                            <ChevronRight className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <p className="font-bold">{item.title}</p>
+                          <p className="text-xs text-green-500 font-semibold">98% Match <span className="text-gray-400 border border-gray-400 px-1 ml-2 uppercase">{item.type}</span></p>
+                        </div>
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
             ))}
+              </>
+            )}
           </div>
-        ) : (
-          <>
-            {/* Continue Watching Row */}
-            {recentItems.length > 0 && (
-            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-              {recentItems.map(item => (
-                <motion.div 
-                  key={`recent-${item.id}`}
-                  whileHover={{ scale: 1.05, zIndex: 20 }}
-                  className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
-                  onClick={() => {
-                    setSelectedItem(item);
-                    addToRecent(item);
-                  }}
-                >
-                  <img 
-                    src={item.thumbnail || `https://picsum.photos/seed/${item.id}/400/225`} 
-                    className="w-full h-full object-cover"
-                    alt={item.title}
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-2">
-                        <div className="p-2 bg-white rounded-full text-black">
-                          <Play className="w-4 h-4 fill-black" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <p className="font-bold">{item.title}</p>
-                      <p className="text-xs text-green-500 font-semibold">Resume <span className="text-gray-400 border border-gray-400 px-1 ml-2 uppercase">{item.type}</span></p>
-                    </div>
-                  </div>
-                  {/* Progress bar simulation */}
-                  <div className="absolute bottom-0 left-0 h-1 bg-red-600" style={{ width: `${Math.floor(Math.random() * 60) + 20}%` }} />
-                </motion.div>
-              ))}
-            </div>
-        )}
-
-        {/* Moviebox Integration Row */}
-        {movieboxItems.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              Aanbevolen Vacatures <ChevronRight className="w-5 h-5 text-gray-500" />
-            </h3>
-            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-              {movieboxItems.map(movie => (
-                <motion.div 
-                  key={`moviebox-${movie.imdbID}`}
-                  whileHover={{ scale: 1.05, zIndex: 20 }}
-                  className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
-                  onClick={() => {
-                    const item: Item = {
-                      id: Math.random(),
-                      title: movie.Title,
-                      url: `https://vidsrc.to/embed/movie/${movie.imdbID}`,
-                      thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/moviebox/400/225',
-                      type: 'movie',
-                      category: 'Moviebox',
-                      imdbId: movie.imdbID
-                    };
-                    setSelectedItem(item);
-                    addToRecent(item);
-                  }}
-                >
-                  <img 
-                    src={movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/moviebox/400/225'} 
-                    className="w-full h-full object-cover"
-                    alt={movie.Title}
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-2">
-                        <div className="p-2 bg-white rounded-full text-black">
-                          <Play className="w-4 h-4 fill-black" />
-                        </div>
-                        <div className="px-2 py-1 bg-red-600 text-[10px] font-bold rounded uppercase">Moviebox</div>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <p className="font-bold">{movie.Title}</p>
-                      <p className="text-xs text-gray-400">Stream via h5.aoneroom.com</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <BannerAd />
-
-        {/* Indian Blockbusters Row */}
-        {indianMovies.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              Nieuwe Kansen <ChevronRight className="w-5 h-5 text-gray-500" />
-            </h3>
-            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-              {indianMovies.map(movie => (
-                <motion.div 
-                  key={movie.imdbID}
-                  whileHover={{ scale: 1.05, zIndex: 20 }}
-                  className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
-                  onClick={() => {
-                    const item: Item = {
-                      id: Math.random(),
-                      title: movie.Title,
-                      url: `https://vidsrc.to/embed/movie/${movie.imdbID}`,
-                      thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/225',
-                      type: 'movie',
-                      category: 'Indian Cinema',
-                      imdbId: movie.imdbID
-                    };
-                    setSelectedItem(item);
-                    addToRecent(item);
-                  }}
-                >
-                  <img 
-                    src={movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/225'} 
-                    className="w-full h-full object-cover"
-                    alt={movie.Title}
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-2">
-                        <div className="p-2 bg-white rounded-full text-black">
-                          <Play className="w-4 h-4 fill-black" />
-                        </div>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setNewItem({
-                              title: movie.Title,
-                              url: `https://www.youtube.com/results?search_query=${encodeURIComponent(movie.Title + ' trailer')}`,
-                              thumbnail: movie.Poster !== 'N/A' ? movie.Poster : 'https://picsum.photos/seed/movie/400/225',
-                              type: 'movie',
-                              category: 'Indian Cinema'
-                            });
-                            setShowAdmin(true);
-                          }}
-                          className="p-2 border border-gray-400 rounded-full text-white hover:border-white"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <p className="font-bold">{movie.Title}</p>
-                      <p className="text-xs text-green-500 font-semibold">99% Match <span className="text-gray-400 border border-gray-400 px-1 ml-2 uppercase">{movie.Year}</span></p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {categories.map(category => (
-          <div key={category} className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              {category} <ChevronRight className="w-5 h-5 text-gray-500" />
-            </h3>
-            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-              {items.filter(i => i.category === category).map(item => (
-                <motion.div 
-                  key={item.id}
-                  whileHover={{ scale: 1.05, zIndex: 20 }}
-                  className="relative flex-none w-64 md:w-72 aspect-video rounded-md overflow-hidden cursor-pointer group"
-                  onClick={() => {
-                    setSelectedItem(item);
-                    addToRecent(item);
-                  }}
-                >
-                  <img 
-                    src={item.thumbnail || `https://picsum.photos/seed/${item.id}/400/225`} 
-                    className="w-full h-full object-cover"
-                    alt={item.title}
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-2">
-                        <div className="p-2 bg-white rounded-full text-black">
-                          <Play className="w-4 h-4 fill-black" />
-                        </div>
-                        <div className="p-2 border border-gray-400 rounded-full text-white hover:border-white">
-                          <Plus className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className="p-2 border border-gray-400 rounded-full text-white hover:border-white">
-                        <ChevronRight className="w-4 h-4" />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <p className="font-bold">{item.title}</p>
-                      <p className="text-xs text-green-500 font-semibold">98% Match <span className="text-gray-400 border border-gray-400 px-1 ml-2 uppercase">{item.type}</span></p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        ))}
-          </>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Admin Panel Modal */}
       <AnimatePresence>
@@ -831,7 +832,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
                     />
                   )}
                   
@@ -853,13 +854,6 @@ export default function App() {
                     >
                       Refresh Player
                     </button>
-                  </div>
-
-                  {/* Banner Ad in Player Modal */}
-                  <div className="absolute bottom-0 left-0 right-0 z-[210] flex justify-center pb-4 pointer-events-none">
-                    <div className="pointer-events-auto scale-75 md:scale-100 origin-bottom">
-                      <BannerAd />
-                    </div>
                   </div>
                 </div>
               </div>

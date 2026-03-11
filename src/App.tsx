@@ -44,18 +44,7 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
-  useEffect(() => {
-    if (viewMode === 'browser' || selectedItem) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [viewMode, selectedItem]);
-
-  const BROWSER_URL = "https://streamex.sh";
+  const BROWSER_URL = "https://onoflix.live/en";
 
   const movieServers = [
     { name: 'Server 1', host: 'vidsrc.to' },
@@ -192,22 +181,22 @@ export default function App() {
   const categories = Array.from(new Set(items.map(i => i.category)));
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] text-[#333] font-sans selection:bg-[#004a99] selection:text-white overflow-x-hidden">
-      {/* Browser View (Always in DOM but conditionally visible) */}
-      <div className={`fixed inset-0 z-[60] bg-white flex flex-col overflow-hidden transition-all duration-500 ${viewMode === 'browser' ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}>
-        {/* Hidden Toggle for Admin/Portal - subtle interaction at the top */}
+    <div className="min-h-screen bg-[#0a0502] text-white font-sans selection:bg-[#ff4e00] selection:text-white overflow-hidden">
+      {/* Browser View (Full Screen Embed) */}
+      <div className={`fixed inset-0 z-[60] bg-black flex flex-col overflow-hidden transition-transform duration-500 ${viewMode === 'browser' ? 'translate-y-0' : 'translate-y-full'}`}>
+        {/* Hidden Toggle for Portal - subtle interaction at the top */}
         <div className="absolute top-0 left-0 right-0 h-1 z-50 hover:h-12 group transition-all duration-300 flex items-center justify-center overflow-hidden">
-          <div className="bg-[#004a99]/90 backdrop-blur-md px-6 py-2 rounded-full border border-white/20 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-6">
+          <div className="bg-black/80 backdrop-blur-md px-6 py-2 rounded-full border border-white/10 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-6">
             <button 
               onClick={() => setViewMode('portal')}
-              className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:text-white/80"
+              className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:text-[#ff4e00]"
             >
               <LayoutGrid className="w-4 h-4" /> Portal
             </button>
-            <div className="w-px h-4 bg-white/20" />
+            <div className="w-px h-4 bg-white/10" />
             <button 
               onClick={() => window.location.reload()}
-              className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:text-white/80"
+              className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:text-[#ff4e00]"
             >
               <Monitor className="w-4 h-4" /> Refresh
             </button>
@@ -216,25 +205,26 @@ export default function App() {
         
         {/* Loading Spinner */}
         {isIframeLoading && (
-          <div className="absolute inset-0 z-40 bg-white flex flex-col items-center justify-center">
+          <div className="absolute inset-0 z-40 bg-black flex flex-col items-center justify-center">
             <motion.div 
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-              className="w-12 h-12 border-4 border-[#004a99] border-t-transparent rounded-full mb-4"
+              className="w-12 h-12 border-4 border-[#ff4e00] border-t-transparent rounded-full mb-4"
             />
-            <p className="text-[#004a99] font-bold animate-pulse">Loading Application...</p>
+            <p className="text-[#ff4e00] font-bold animate-pulse">Loading Content...</p>
           </div>
         )}
 
-        {/* Full Screen Application Content */}
+        {/* Full Screen Iframe */}
         <div className="flex-1 w-full h-full">
           <iframe 
             src={BROWSER_URL}
-            className={`w-full h-full border-none bg-white transition-opacity duration-500 ${isIframeLoading ? 'opacity-0' : 'opacity-100'}`}
+            className={`w-full h-full border-none bg-black transition-opacity duration-500 ${isIframeLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setIsIframeLoading(false)}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
           />
         </div>
       </div>
@@ -797,13 +787,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Simulated Ad Space */}
-              <div className="hidden md:flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 px-4 py-1 rounded animate-pulse">
-                <span className="text-[10px] uppercase font-bold text-yellow-500 tracking-widest">Sponsored</span>
-                <p className="text-xs text-yellow-200/80">Premium Ad: Get 50% off on Premium today!</p>
-                <ExternalLink className="w-3 h-3 text-yellow-500" />
-              </div>
-
               <div className="flex items-center gap-4">
                 <div className="hidden sm:block text-xs text-gray-500 font-mono">
                   {selectedItem.url.substring(0, 40)}...
@@ -851,6 +834,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                     />
                   )}
                   
@@ -876,17 +860,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Sidebar Ad Space */}
+              {/* Sidebar (Trending Now only, ads removed) */}
               <div className="hidden lg:flex w-64 bg-[#111] border-l border-white/10 flex-col p-4 space-y-6">
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Advertisement</span>
-                  <div className="aspect-[3/4] bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg p-4 flex flex-col justify-between">
-                    <h4 className="font-bold text-lg">Upgrade to Pro</h4>
-                    <p className="text-xs text-white/70">Ad-free experience, 4K streaming, and early access to new apps.</p>
-                    <button className="w-full bg-white text-black text-xs font-bold py-2 rounded">Learn More</button>
-                  </div>
-                </div>
-                
                 <div className="space-y-2">
                   <span className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Trending Now</span>
                   <div className="space-y-3">

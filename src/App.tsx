@@ -41,7 +41,7 @@ export default function App() {
   const [movieboxItems, setMovieboxItems] = useState<any[]>([]);
   const [recentItems, setRecentItems] = useState<Item[]>([]);
   const [activeServer, setActiveServer] = useState('vidsrc.to');
-  const [viewMode, setViewMode] = useState<'portal' | 'browser'>('portal');
+  const [viewMode, setViewMode] = useState<'portal' | 'browser'>('browser');
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
@@ -217,7 +217,7 @@ export default function App() {
         )}
 
         {/* Full Screen Iframe */}
-        <div className="flex-1 w-full h-full relative">
+        <div className="flex-1 w-full h-full">
           <iframe 
             src={BROWSER_URL}
             className={`w-full h-full border-none bg-black transition-opacity duration-500 ${isIframeLoading ? 'opacity-0' : 'opacity-100'}`}
@@ -225,14 +225,8 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
           />
-          {/* Banner Ad at the bottom of browser view */}
-          <div className="absolute bottom-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
-            <div className="pointer-events-auto scale-75 md:scale-100 origin-bottom">
-              <BannerAd />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -837,7 +831,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                     />
                   )}
                   

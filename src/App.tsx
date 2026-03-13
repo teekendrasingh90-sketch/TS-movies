@@ -44,7 +44,7 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
-  const BROWSER_URL = "/proxy-onoflix/en";
+  const BROWSER_URL = "https://onoflix.live/en";
 
   const movieServers = [
     { name: 'Server 1', host: 'vidsrc.to' },
@@ -224,6 +224,7 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
           />
         </div>
       </div>
@@ -826,15 +827,14 @@ export default function App() {
                     <iframe 
                       key={`${selectedItem.id}-${activeServer}`}
                       src={selectedItem.type === 'movie' && selectedItem.imdbId 
-                        ? `/proxy-movie/embed/movie/${selectedItem.imdbId}?host=${activeServer}` 
-                        : selectedItem.url.startsWith('http') 
-                          ? `/proxy-movie/${selectedItem.url.replace(/^https?:\/\//, '')}?host=${new URL(selectedItem.url).hostname}`
-                          : selectedItem.url
+                        ? `https://${activeServer}/embed/movie/${selectedItem.imdbId}` 
+                        : selectedItem.url
                       }
                       className="w-full h-full border-none"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                     />
                   )}
                   

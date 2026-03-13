@@ -116,32 +116,12 @@ async function startServer() {
                 
                 const PROXY_PREFIX = '/proxy-onoflix';
                 const TARGET_DOMAIN = 'onoflix.live';
-                
-                const AD_PATTERNS = [
-                  'googlesyndication.com', 'doubleclick.net', 'adnxs.com', 'adform.net',
-                  'adservice.google', 'analytics.google.com', 'facebook.net', 'amazon-adsystem.com',
-                  'popads.net', 'propellerads.com', 'exoclick.com', 'juicyads.com',
-                  'onclickads.net', 'ad-maven.com', 'mobicow.com', 'popcash.net',
-                  'yandex.ru', 'mail.ru', 'bet365', 'casino', 'poker', 'betting',
-                  'a.bestcontentfood.top', 'clksite.com', 'fastclick.net', 'ad-delivery.net'
-                ];
-
-                function isAd(url) {
-                  if (!url) return false;
-                  const urlStr = String(url).toLowerCase();
-                  return AD_PATTERNS.some(pattern => urlStr.includes(pattern));
-                }
 
                 function wrapUrl(url) {
                   if (!url) return url;
                   if (typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
                   
-                  if (isAd(url)) {
-                    console.log('Blocked Ad:', url);
-                    return 'about:blank';
-                  }
-
                   if (url.startsWith(PROXY_PREFIX)) return url;
                   
                   try {
@@ -156,32 +136,6 @@ async function startServer() {
                   
                   return url;
                 }
-
-                // Block common ad elements via CSS
-                const style = document.createElement('style');
-                style.textContent = \`
-                  iframe[src*="ads"], iframe[id*="ads"], div[class*="ads-"], div[id*="ads-"],
-                  .ad-container, .ad-wrapper, .ad-banner, .ad-slot, .ad-box,
-                  [id^="ad-"], [class^="ad-"], [id*="-ad-"], [class*="-ad-"],
-                  .popunder, .popup-ad, .overlay-ad, .floating-ad,
-                  ins.adsbygoogle, div[id^="google_ads_"],
-                  .mgid-ad, .taboola-ad, .outbrain-ad,
-                  #disqus_thread, .video-ads, .ytp-ad-progress-list,
-                  [class*="premium-ad"], [id*="premium-ad"]
-                  { display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; pointer-events: none !important; opacity: 0 !important; }
-                \`;
-                document.head.appendChild(style);
-
-                // Block Popups
-                window.open = function() { 
-                  console.log('Blocked window.open attempt'); 
-                  return { focus: function() {}, close: function() {} }; 
-                };
-                
-                // Block alert/confirm/prompt which are often used by ads
-                window.alert = function() { console.log('Blocked alert'); };
-                window.confirm = function() { console.log('Blocked confirm'); return true; };
-                window.prompt = function() { console.log('Blocked prompt'); return null; };
 
                 const originalFetch = window.fetch;
                 window.fetch = function(input, init) {
@@ -242,63 +196,6 @@ async function startServer() {
   });
 
   app.use('/proxy-onoflix', onoflixProxy);
-
-  // Generic Movie Proxy for vidsrc and others
-  const movieProxy = createProxyMiddleware({
-    target: 'https://vidsrc.to',
-    changeOrigin: true,
-    secure: false,
-    followRedirects: true,
-    selfHandleResponse: true,
-    router: (req) => {
-      const url = new URL(req.url || '', 'http://localhost');
-      const targetHost = url.searchParams.get('host') || 'vidsrc.to';
-      return `https://${targetHost}`;
-    },
-    on: {
-      proxyReq: (proxyReq, req, res) => {
-        const url = new URL(req.url || '', 'http://localhost');
-        const targetHost = url.searchParams.get('host') || 'vidsrc.to';
-        proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        proxyReq.setHeader('referer', `https://${targetHost}/`);
-      },
-      proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
-        res.removeHeader('X-Frame-Options');
-        res.removeHeader('Content-Security-Policy');
-        
-        const contentType = proxyRes.headers['content-type'];
-        if (contentType && contentType.includes('text/html')) {
-          let html = responseBuffer.toString('utf8');
-          
-          const injection = `
-            <script>
-              (function() {
-                // Ad blocker injection
-                window.open = function() { console.log('Blocked popup'); return { focus: () => {}, close: () => {} }; };
-                window.alert = () => {};
-                
-                const style = document.createElement('style');
-                style.textContent = 'iframe[src*="ads"], .ad-container, .ad-wrapper, .popunder, #overlay, .overlay { display: none !important; pointer-events: none !important; opacity: 0 !important; }';
-                document.head.appendChild(style);
-                
-                // Prevent all new windows/tabs
-                document.addEventListener('click', function(e) {
-                  const target = e.target.closest('a');
-                  if (target && target.target === '_blank') {
-                    target.target = '_self';
-                  }
-                }, true);
-              })();
-            </script>
-          `;
-          return html.replace('<head>', '<head>' + injection);
-        }
-        return responseBuffer;
-      })
-    }
-  });
-
-  app.use('/proxy-movie', movieProxy);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

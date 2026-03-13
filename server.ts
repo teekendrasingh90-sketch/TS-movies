@@ -269,6 +269,28 @@ async function startServer() {
                 height: 0 !important;
                 width: 0 !important;
               }
+              #proxy-home-btn {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 999999;
+                background: #ff4757;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 50px;
+                text-decoration: none;
+                font-family: sans-serif;
+                font-weight: bold;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                transition: transform 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              }
+              #proxy-home-btn:hover {
+                transform: scale(1.1);
+                background: #ff6b81;
+              }
             </style>
             <script>
               (function() {
@@ -281,12 +303,37 @@ async function startServer() {
                   // Neutralize top and parent
                   Object.defineProperty(window, 'top', { get: function() { return window.self; } });
                   Object.defineProperty(window, 'parent', { get: function() { return window.self; } });
-                  
-                  // Intercept location changes
-                  const originalLocation = window.location;
-                  // Note: We can't fully override window.location, but we can intercept clicks
                 };
                 blockTopNav();
+
+                // Create Home Button
+                const homeBtn = document.createElement('a');
+                homeBtn.id = 'proxy-home-btn';
+                homeBtn.href = '/proxy-movie/';
+                homeBtn.innerHTML = '<span>🏠</span> Home';
+                document.body.appendChild(homeBtn);
+
+                // Create Fix Player Button (only on watch pages)
+                if (window.location.pathname.includes('/movies/')) {
+                  const fixBtn = document.createElement('button');
+                  fixBtn.id = 'proxy-fix-btn';
+                  fixBtn.style.cssText = 'position:fixed;bottom:70px;right:20px;z-index:999999;background:#1e90ff;color:white;padding:10px 20px;border-radius:50px;border:none;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
+                  fixBtn.innerHTML = '<span>🔧</span> Fix Player';
+                  fixBtn.onclick = () => {
+                    document.querySelectorAll('iframe').forEach(f => {
+                      if (f.src.includes('ads') || f.src.includes('doubleclick')) f.remove();
+                      else f.src = f.src; // Reload player iframes
+                    });
+                    // Remove overlays
+                    document.querySelectorAll('div').forEach(div => {
+                      const style = window.getComputedStyle(div);
+                      if (style.position === 'fixed' && style.zIndex > 1000 && !div.id.startsWith('proxy-')) {
+                        div.remove();
+                      }
+                    });
+                  };
+                  document.body.appendChild(fixBtn);
+                }
 
                 // Block popups and window.open
                 window.open = function() { return { focus: () => {}, close: () => {} }; };
@@ -335,6 +382,7 @@ async function startServer() {
                 window.addEventListener('click', e => {
                   const link = e.target.closest('a');
                   if (link && link.href) {
+                    if (link.id === 'proxy-home-btn') return;
                     // Force navigation to stay in current frame
                     link.target = '_self';
                     
@@ -343,7 +391,29 @@ async function startServer() {
                       link.href = wrapped;
                     }
                   }
+                  
+                  // Handle buttons that might act as links
+                  const btn = e.target.closest('button, div[role="button"], .btn, .button');
+                  if (btn && !btn.id.startsWith('proxy-')) {
+                    // Some sites use data-href or similar
+                    const possibleHref = btn.getAttribute('data-href') || btn.getAttribute('data-url');
+                    if (possibleHref) {
+                      window.location.href = wrapUrl(possibleHref);
+                    }
+                  }
                 }, true);
+
+                // Intercept Location Methods
+                try {
+                  const originalAssign = window.location.assign;
+                  window.location.assign = function(url) {
+                    return originalAssign.call(window.location, wrapUrl(url));
+                  };
+                  const originalReplace = window.location.replace;
+                  window.location.replace = function(url) {
+                    return originalReplace.call(window.location, wrapUrl(url));
+                  };
+                } catch (e) {}
 
                 // MutationObserver to fix dynamic links
                 const observer = new MutationObserver(mutations => {

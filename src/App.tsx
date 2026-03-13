@@ -232,7 +232,7 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation allow-modals"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation allow-modals allow-top-navigation-by-user-activation"
           />
         </div>
       </div>
@@ -842,7 +842,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation allow-modals"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation allow-modals allow-top-navigation-by-user-activation"
                     />
                   )}
                   

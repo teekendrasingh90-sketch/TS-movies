@@ -247,8 +247,8 @@ async function startServer() {
           ));
         }
 
-        const contentType = proxyRes.headers['content-type'];
-        if (contentType && contentType.includes('text/html')) {
+        const contentType = proxyRes.headers['content-type'] || '';
+        if (contentType.includes('text/html')) {
           let html = responseBuffer.toString('utf8');
           
           const injection = `
@@ -265,9 +265,6 @@ async function startServer() {
             </style>
             <script>
               (function() {
-                try { if (window.top !== window.self) { window.top = window.self; } } catch (e) {}
-                window.open = function() { return null; };
-                
                 const PROXY_PREFIX = '/proxy-movie';
                 const TARGET_DOMAIN = 'themoviebox.org';
                 const BLOCKED_DOMAINS = ${JSON.stringify([...blockedDomains])};
@@ -275,7 +272,10 @@ async function startServer() {
                 function wrapUrl(url) {
                   if (!url || typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
+                  
+                  // Ad blocker
                   if (BLOCKED_DOMAINS.some(domain => url.includes(domain))) return 'about:blank';
+                  
                   if (url.startsWith(PROXY_PREFIX)) return url;
                   
                   try {
@@ -284,12 +284,33 @@ async function startServer() {
                       return PROXY_PREFIX + u.pathname + u.search + u.hash;
                     }
                     if (u.origin === window.location.origin && !u.pathname.startsWith(PROXY_PREFIX)) {
+                      // Handle relative paths that browser resolved to our origin
                       return PROXY_PREFIX + u.pathname + u.search + u.hash;
                     }
                   } catch(e) {}
                   return url;
                 }
 
+                // Intercept Navigation
+                window.addEventListener('click', e => {
+                  const link = e.target.closest('a');
+                  if (link && link.href) {
+                    const wrapped = wrapUrl(link.href);
+                    if (wrapped !== link.href) {
+                      link.href = wrapped;
+                    }
+                  }
+                }, true);
+
+                // Intercept Forms
+                window.addEventListener('submit', e => {
+                  const form = e.target;
+                  if (form.action) {
+                    form.action = wrapUrl(form.action);
+                  }
+                }, true);
+
+                // Intercept Fetch/XHR
                 const originalFetch = window.fetch;
                 window.fetch = function(input, init) {
                   if (typeof input === 'string') input = wrapUrl(input);
@@ -302,12 +323,29 @@ async function startServer() {
                   return originalOpen.call(this, method, wrapUrl(url), ...args);
                 };
 
+                // Intercept History
+                const originalPushState = history.pushState;
+                history.pushState = function(state, title, url) {
+                  return originalPushState.call(this, state, title, wrapUrl(url));
+                };
+                const originalReplaceState = history.replaceState;
+                history.replaceState = function(state, title, url) {
+                  return originalReplaceState.call(this, state, title, wrapUrl(url));
+                };
+
+                // Intercept Element Creation
                 const originalCreateElement = document.createElement;
                 document.createElement = function(tagName, options) {
                   const el = originalCreateElement.call(this, tagName, options);
                   const tag = tagName.toLowerCase();
-                  if (['img', 'script', 'iframe', 'link', 'source', 'video', 'audio'].includes(tag)) {
-                    const attr = (tag === 'link') ? 'href' : 'src';
+                  const attrs = {
+                    'img': 'src', 'script': 'src', 'iframe': 'src', 
+                    'link': 'href', 'source': 'src', 'video': 'src', 
+                    'audio': 'src', 'form': 'action', 'a': 'href'
+                  };
+                  
+                  if (attrs[tag]) {
+                    const attr = attrs[tag];
                     const descriptor = Object.getOwnPropertyDescriptor(el.constructor.prototype, attr) || 
                                      Object.getOwnPropertyDescriptor(HTMLElement.prototype, attr);
                     if (descriptor && descriptor.set) {
@@ -329,9 +367,15 @@ async function startServer() {
             </script>
           `;
           
-          // More efficient replacements
-          html = html.replace(/(src|href|action)=["']\/(?!\/)/g, '$1="/proxy-movie/');
-          html = html.replace(/https?:\/\/(www\.)?themoviebox\.org/gi, '/proxy-movie');
+          // Advanced HTML Rewriting
+          // 1. Rewrite root-relative paths
+          html = html.replace(/(src|href|action|srcset|data-src|data-href)=["']\/(?!\/)/g, '$1="/proxy-movie/');
+          
+          // 2. Rewrite absolute URLs to the target domain
+          const domainRegex = /https?:\/\/(www\.)?themoviebox\.org/gi;
+          html = html.replace(domainRegex, '/proxy-movie');
+          
+          // 3. Inject our script
           html = html.replace('<head>', '<head>' + injection);
           
           return html;

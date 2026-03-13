@@ -117,10 +117,57 @@ async function startServer() {
                 const PROXY_PREFIX = '/proxy-onoflix';
                 const TARGET_DOMAIN = 'onoflix.live';
 
+                // --- AD BLOCKER LOGIC ---
+                const AD_BLOCK_LIST = [
+                  'doubleclick.net', 'googlesyndication.com', 'popads.net', 'popcash.net',
+                  'propellerads.com', 'adsterra.com', 'onclickads.net', 'exoclick.com',
+                  'juicyads.com', 'adnxs.com', 'ad-maven.com', 'ad-score.com',
+                  'mobicow.com', 'wigetmedia.com', 'ad-delivery.net', 'vidoomy.com'
+                ];
+
+                const AD_SELECTORS = [
+                  '.ad-container', '.ad-slot', '.adsbygoogle', '[id^="ad-"]', '[class^="ad-"]',
+                  '.popunder', '.popup-wrapper', '#popunder', '#popup', '.mgid-widget',
+                  '.outbrain', '.taboola', '.rc-widget', '.ads-wrapper', '.banner-ad'
+                ];
+
+                function isAdUrl(url) {
+                  if (!url || typeof url !== 'string') return false;
+                  return AD_BLOCK_LIST.some(domain => url.includes(domain));
+                }
+
+                // Block Popups
+                window.open = function() {
+                  console.log('Blocked a popup attempt');
+                  return null;
+                };
+
+                // Inject CSS to hide ads
+                const style = document.createElement('style');
+                style.innerHTML = `
+                  ${AD_SELECTORS.join(', ')} { display: none !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; width: 0 !important; }
+                  iframe[src*="ads"], iframe[src*="doubleclick"] { display: none !important; }
+                `;
+                document.head.appendChild(style);
+
+                // Periodic cleanup of new ad elements
+                setInterval(() => {
+                  AD_SELECTORS.forEach(selector => {
+                    document.querySelectorAll(selector).forEach(el => el.remove());
+                  });
+                }, 2000);
+                // ------------------------
+
                 function wrapUrl(url) {
                   if (!url) return url;
                   if (typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
+                  
+                  // Block Ads
+                  if (isAdUrl(url)) {
+                    console.log('Blocked Ad Request:', url);
+                    return 'about:blank';
+                  }
                   
                   if (url.startsWith(PROXY_PREFIX)) return url;
                   

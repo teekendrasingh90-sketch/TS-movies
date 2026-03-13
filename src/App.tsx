@@ -224,7 +224,6 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation allow-top-navigation-by-user-activation"
           />
         </div>
       </div>
@@ -827,14 +826,15 @@ export default function App() {
                     <iframe 
                       key={`${selectedItem.id}-${activeServer}`}
                       src={selectedItem.type === 'movie' && selectedItem.imdbId 
-                        ? `https://${activeServer}/embed/movie/${selectedItem.imdbId}` 
-                        : selectedItem.url
+                        ? `/proxy-movie/embed/movie/${selectedItem.imdbId}?host=${activeServer}` 
+                        : selectedItem.url.startsWith('http') 
+                          ? `/proxy-movie/${selectedItem.url.replace(/^https?:\/\//, '')}?host=${new URL(selectedItem.url).hostname}`
+                          : selectedItem.url
                       }
                       className="w-full h-full border-none"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation allow-top-navigation-by-user-activation"
                     />
                   )}
                   

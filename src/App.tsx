@@ -44,7 +44,7 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
-  const BROWSER_URL = "/proxy-onoflix/en";
+  const BROWSER_URL = "https://onoflix.live/en";
 
   const movieServers = [
     { name: 'Server 1', host: 'vidsrc.to' },
@@ -224,7 +224,7 @@ export default function App() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation allow-top-navigation-by-user-activation"
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
           />
         </div>
       </div>
@@ -233,6 +233,10 @@ export default function App() {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 px-4 md:px-12 py-4 flex items-center justify-between ${isScrolled ? 'bg-white shadow-md' : 'bg-transparent'}`}>
         <div className="flex items-center gap-8">
           <h1 className="text-[#004a99] text-3xl font-black tracking-tighter uppercase italic">Movies</h1>
+          {/* Ad Slot in Top Bar */}
+          <div id="container-10725791" className="hidden lg:block min-w-[300px] h-[50px] bg-gray-100/10 rounded flex items-center justify-center text-[10px] text-gray-500 uppercase tracking-widest border border-white/5">
+            Advertisement
+          </div>
           <div className="hidden md:flex gap-5 text-sm font-bold text-gray-600">
             <button className="hover:text-[#004a99] transition-colors">Home</button>
             <button className="hover:text-[#004a99] transition-colors">Movies</button>
@@ -834,7 +838,7 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation allow-top-navigation-by-user-activation"
+                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                     />
                   )}
                   

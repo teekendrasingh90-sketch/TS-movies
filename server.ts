@@ -65,6 +65,96 @@ async function startServer() {
     }
   });
 
+  // Shared Ad Blocker Script
+  const AD_BLOCKER_SCRIPT = `
+    <script>
+      (function() {
+        // Block Popups
+        window.open = function() { console.log('Blocked popup'); return { focus: () => {}, close: () => {}, closed: true }; };
+        window.alert = () => {};
+        window.confirm = () => true;
+        window.prompt = () => null;
+
+        // Block common ad domains
+        const AD_PATTERNS = [
+          'googlesyndication.com', 'doubleclick.net', 'adnxs.com', 'adform.net',
+          'adservice.google', 'analytics.google.com', 'facebook.net', 'amazon-adsystem.com',
+          'popads.net', 'propellerads.com', 'exoclick.com', 'juicyads.com',
+          'onclickads.net', 'ad-maven.com', 'mobicow.com', 'popcash.net',
+          'yandex.ru', 'mail.ru', 'bet365', 'casino', 'poker', 'betting',
+          'a.bestcontentfood.top', 'clksite.com', 'fastclick.net', 'ad-delivery.net',
+          'ad-score.com', 'ad-speed.com', 'ad-target.com', 'ad-up.com'
+        ];
+
+        function isAd(url) {
+          if (!url) return false;
+          const urlStr = String(url).toLowerCase();
+          return AD_PATTERNS.some(pattern => urlStr.includes(pattern));
+        }
+
+        // Hide ad elements
+        const style = document.createElement('style');
+        style.textContent = \`
+          iframe[src*="ads"], iframe[id*="ads"], div[class*="ads-"], div[id*="ads-"],
+          .ad-container, .ad-wrapper, .ad-banner, .ad-slot, .ad-box,
+          [id^="ad-"], [class^="ad-"], [id*="-ad-"], [class*="-ad-"],
+          .popunder, .popup-ad, .overlay-ad, .floating-ad,
+          ins.adsbygoogle, div[id^="google_ads_"],
+          .mgid-ad, .taboola-ad, .outbrain-ad,
+          #disqus_thread, .video-ads, .ytp-ad-progress-list,
+          [class*="premium-ad"], [id*="premium-ad"],
+          .ads-section, #ads-section, .sponsored-content,
+          [data-ad-client], [data-ad-slot],
+          #overlay, .overlay, .modal-ad, .fixed-ad
+          { display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; pointer-events: none !important; opacity: 0 !important; }
+        \`;
+        document.head.appendChild(style);
+
+        // Intercept dynamic elements
+        const originalCreateElement = document.createElement;
+        document.createElement = function(tagName, options) {
+          const el = originalCreateElement.call(this, tagName, options);
+          const tag = tagName.toLowerCase();
+          if (tag === 'script' || tag === 'iframe') {
+            const attr = 'src';
+            const descriptor = Object.getOwnPropertyDescriptor(el.constructor.prototype, attr) || 
+                             Object.getOwnPropertyDescriptor(HTMLElement.prototype, attr);
+            if (descriptor && descriptor.set) {
+              Object.defineProperty(el, attr, {
+                set: function(val) {
+                  if (isAd(val)) {
+                    console.log('Blocked dynamic ad:', tag, val);
+                    if (tag === 'script') return;
+                    val = 'about:blank';
+                  }
+                  descriptor.set.call(this, val);
+                },
+                get: function() { return descriptor.get.call(this); },
+                configurable: true
+              });
+            }
+          }
+          return el;
+        };
+
+        // Prevent new tabs on clicks
+        document.addEventListener('click', function(e) {
+          const target = e.target.closest('a');
+          if (target && (target.target === '_blank' || target.target === 'blank')) {
+            target.target = '_self';
+          }
+        }, true);
+
+        // Periodically check for and remove ads
+        setInterval(() => {
+          document.querySelectorAll('iframe').forEach(iframe => {
+            if (isAd(iframe.src)) iframe.remove();
+          });
+        }, 2000);
+      })();
+    </script>
+  `;
+
   // Proxy to bypass X-Frame-Options and fix relative paths
   const onoflixProxy = createProxyMiddleware({
     target: 'https://onoflix.live',
@@ -104,80 +194,7 @@ async function startServer() {
           let html = responseBuffer.toString('utf8');
           
           // Inject script to intercept all requests and redirect them to our proxy
-          const injection = `
-            <script>
-              (function() {
-                // Frame-buster buster
-                try {
-                  if (window.top !== window.self) {
-                    window.top = window.self;
-                  }
-                } catch (e) {}
-                
-                const PROXY_PREFIX = '/proxy-onoflix';
-                const TARGET_DOMAIN = 'onoflix.live';
-
-                function wrapUrl(url) {
-                  if (!url) return url;
-                  if (typeof url !== 'string') return url;
-                  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
-                  
-                  if (url.startsWith(PROXY_PREFIX)) return url;
-                  
-                  try {
-                    const u = new URL(url, window.location.href);
-                    if (u.hostname === TARGET_DOMAIN || u.hostname.endsWith('.' + TARGET_DOMAIN)) {
-                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
-                    }
-                    if (u.origin === window.location.origin && !u.pathname.startsWith(PROXY_PREFIX)) {
-                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
-                    }
-                  } catch(e) {}
-                  
-                  return url;
-                }
-
-                const originalFetch = window.fetch;
-                window.fetch = function(input, init) {
-                  if (typeof input === 'string') {
-                    input = wrapUrl(input);
-                  } else if (input instanceof Request) {
-                    const newUrl = wrapUrl(input.url);
-                    input = new Request(newUrl, input);
-                  }
-                  return originalFetch.call(this, input, init);
-                };
-
-                const originalOpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                  return originalOpen.call(this, method, wrapUrl(url), ...args);
-                };
-
-                const originalCreateElement = document.createElement;
-                document.createElement = function(tagName, options) {
-                  const el = originalCreateElement.call(this, tagName, options);
-                  const tag = tagName.toLowerCase();
-                  if (tag === 'img' || tag === 'script' || tag === 'iframe' || tag === 'link' || tag === 'source' || tag === 'video' || tag === 'audio') {
-                    const attr = (tag === 'link') ? 'href' : 'src';
-                    const originalSetter = Object.getOwnPropertyDescriptor(el.constructor.prototype, attr) || 
-                                         Object.getOwnPropertyDescriptor(HTMLElement.prototype, attr);
-                    if (originalSetter && originalSetter.set) {
-                      Object.defineProperty(el, attr, {
-                        set: function(val) {
-                          originalSetter.set.call(this, wrapUrl(val));
-                        },
-                        get: function() {
-                          return originalSetter.get.call(this);
-                        },
-                        configurable: true
-                      });
-                    }
-                  }
-                  return el;
-                };
-              })();
-            </script>
-          `;
+          const injection = AD_BLOCKER_SCRIPT;
           
           // Replace paths in the HTML
           html = html.replace(/(src|href|action)=["']\/(?!\/)/g, '$1="' + '/proxy-onoflix/');
@@ -192,10 +209,48 @@ async function startServer() {
         }
         return responseBuffer;
       }),
-    }
+    },
+
   });
 
   app.use('/proxy-onoflix', onoflixProxy);
+
+  // Generic Movie Proxy for vidsrc and others
+  const movieProxy = createProxyMiddleware({
+    target: 'https://vidsrc.to',
+    changeOrigin: true,
+    secure: false,
+    followRedirects: true,
+    selfHandleResponse: true,
+    router: (req) => {
+      const url = new URL(req.url || '', 'http://localhost');
+      const targetHost = url.searchParams.get('host') || 'vidsrc.to';
+      return `https://${targetHost}`;
+    },
+    on: {
+      proxyReq: (proxyReq, req, res) => {
+        const url = new URL(req.url || '', 'http://localhost');
+        const targetHost = url.searchParams.get('host') || 'vidsrc.to';
+        proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        proxyReq.setHeader('referer', `https://${targetHost}/`);
+      },
+      proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
+        res.removeHeader('X-Frame-Options');
+        res.removeHeader('Content-Security-Policy');
+        
+        const contentType = proxyRes.headers['content-type'];
+        if (contentType && contentType.includes('text/html')) {
+          let html = responseBuffer.toString('utf8');
+          
+          const injection = AD_BLOCKER_SCRIPT;
+          return html.replace('<head>', '<head>' + injection);
+        }
+        return responseBuffer;
+      })
+    }
+  });
+
+  app.use('/proxy-movie', movieProxy);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

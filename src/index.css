@@ -7,8 +7,8 @@
 }
 
 @layer base {
-  body {
-    @apply bg-[#0a0502] text-white antialiased;
+  html, body {
+    @apply bg-[#0a0502] text-white antialiased overflow-hidden h-full w-full;
     font-family: var(--font-sans);
   }
 }

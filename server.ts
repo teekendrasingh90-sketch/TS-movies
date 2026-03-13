@@ -192,13 +192,20 @@ async function startServer() {
     ws: true,
     proxyTimeout: 15000,
     timeout: 15000,
-    pathRewrite: {
-      '^/proxy-movie': '',
-    },
     on: {
       proxyReq: (proxyReq, req, res) => {
         const url = req.url || '';
         
+        // Dynamic target handling for movie players
+        if (req.query && req.query.remote_url) {
+          const remoteUrl = req.query.remote_url as string;
+          try {
+            const parsed = new URL(remoteUrl);
+            proxyReq.path = parsed.pathname + parsed.search;
+            proxyReq.setHeader('host', parsed.host);
+          } catch (e) {}
+        }
+
         // Allow all images and media from the target domain or common CDNs
         const isMedia = /\.(jpg|jpeg|png|gif|webp|svg|mp4|m3u8|ts)$/i.test(url);
         
@@ -265,21 +272,21 @@ async function startServer() {
             </style>
             <script>
               (function() {
-                // Prevent breaking out of iframe
-                const preventFrameBreak = () => {
-                  if (window.top !== window.self) {
-                    // Try to neutralize 'top' references
-                    try {
-                      window.top = window.self; 
-                    } catch (e) {}
-                  }
+                // Aggressive Anti-Frame-Break
+                const blockTopNav = () => {
+                  window.onbeforeunload = function() {
+                    return "Are you sure?"; // This blocks automatic redirects
+                  };
+                  
+                  // Neutralize top and parent
+                  Object.defineProperty(window, 'top', { get: function() { return window.self; } });
+                  Object.defineProperty(window, 'parent', { get: function() { return window.self; } });
+                  
+                  // Intercept location changes
+                  const originalLocation = window.location;
+                  // Note: We can't fully override window.location, but we can intercept clicks
                 };
-                
-                // More robust way to block top-level navigation
-                window.onbeforeunload = function() {
-                  // This can sometimes help prevent unwanted redirects
-                  // but we use it carefully
-                };
+                blockTopNav();
 
                 // Block popups and window.open
                 window.open = function() { return { focus: () => {}, close: () => {} }; };
@@ -307,11 +314,17 @@ async function startServer() {
                   
                   try {
                     const u = new URL(url, window.location.href);
+                    
+                    // If it's a movie player domain (like vidsrc), wrap it specially
+                    const moviePlayerDomains = ['vidsrc.to', 'vidsrc.me', '2embed.to', 'embed.su'];
+                    if (moviePlayerDomains.some(d => u.hostname.includes(d))) {
+                      return PROXY_PREFIX + '?remote_url=' + encodeURIComponent(url);
+                    }
+
                     if (u.hostname === TARGET_DOMAIN || u.hostname.endsWith('.' + TARGET_DOMAIN)) {
                       return PROXY_PREFIX + u.pathname + u.search + u.hash;
                     }
                     if (u.origin === window.location.origin && !u.pathname.startsWith(PROXY_PREFIX)) {
-                      // Handle relative paths that browser resolved to our origin
                       return PROXY_PREFIX + u.pathname + u.search + u.hash;
                     }
                   } catch(e) {}
@@ -323,9 +336,7 @@ async function startServer() {
                   const link = e.target.closest('a');
                   if (link && link.href) {
                     // Force navigation to stay in current frame
-                    if (link.target === '_top' || link.target === '_parent') {
-                      link.target = '_self';
-                    }
+                    link.target = '_self';
                     
                     const wrapped = wrapUrl(link.href);
                     if (wrapped !== link.href) {
@@ -333,6 +344,22 @@ async function startServer() {
                     }
                   }
                 }, true);
+
+                // MutationObserver to fix dynamic links
+                const observer = new MutationObserver(mutations => {
+                  mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                      if (node.nodeType === 1) {
+                        const links = node.querySelectorAll('a');
+                        links.forEach(l => {
+                          if (l.href) l.href = wrapUrl(l.href);
+                          l.target = '_self';
+                        });
+                      }
+                    });
+                  });
+                });
+                observer.observe(document.documentElement, { childList: true, subtree: true });
 
                 // Intercept Forms
                 window.addEventListener('submit', e => {

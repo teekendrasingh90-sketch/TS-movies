@@ -265,6 +265,16 @@ async function startServer() {
             </style>
             <script>
               (function() {
+                // Frame break protection
+                try {
+                  if (window.top !== window.self) {
+                    window.top = window.self;
+                  }
+                } catch (e) {}
+
+                // Block popups
+                window.open = function() { return null; };
+
                 const PROXY_PREFIX = '/proxy-movie';
                 const TARGET_DOMAIN = 'themoviebox.org';
                 const BLOCKED_DOMAINS = ${JSON.stringify([...blockedDomains])};

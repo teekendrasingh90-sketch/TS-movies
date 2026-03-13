@@ -217,7 +217,7 @@ export default function App() {
               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
               className="w-12 h-12 border-4 border-[#ff4e00] border-t-transparent rounded-full mb-4"
             />
-            <p className="text-[#ff4e00] font-bold animate-pulse">Optimizing Speed...</p>
+            <p className="text-[#ff4e00] font-bold animate-pulse">Loading...</p>
             <p className="text-gray-500 text-xs mt-2">Connecting to MovieBox...</p>
           </div>
         )}

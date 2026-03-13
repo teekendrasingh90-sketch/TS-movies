@@ -116,29 +116,12 @@ async function startServer() {
                 
                 const PROXY_PREFIX = '/proxy-onoflix';
                 const TARGET_DOMAIN = 'onoflix.live';
-                
-                const AD_PATTERNS = [
-                  'googlesyndication.com', 'doubleclick.net', 'adnxs.com', 'adform.net',
-                  'adservice.google', 'analytics.google.com', 'facebook.net', 'amazon-adsystem.com',
-                  'popads.net', 'propellerads.com', 'exoclick.com', 'juicyads.com',
-                  'onclickads.net', 'ad-maven.com', 'mobicow.com', 'popcash.net'
-                ];
-
-                function isAd(url) {
-                  if (!url) return false;
-                  return AD_PATTERNS.some(pattern => url.includes(pattern));
-                }
 
                 function wrapUrl(url) {
                   if (!url) return url;
                   if (typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
                   
-                  if (isAd(url)) {
-                    console.log('Blocked Ad:', url);
-                    return 'about:blank';
-                  }
-
                   if (url.startsWith(PROXY_PREFIX)) return url;
                   
                   try {
@@ -153,19 +136,6 @@ async function startServer() {
                   
                   return url;
                 }
-
-                // Block common ad elements via CSS
-                const style = document.createElement('style');
-                style.textContent = \`
-                  iframe[src*="ads"], iframe[id*="ads"], div[class*="ads-"], div[id*="ads-"],
-                  .ad-container, .ad-wrapper, .ad-banner, .ad-slot, .ad-box,
-                  [id^="ad-"], [class^="ad-"], [id*="-ad-"], [class*="-ad-"],
-                  .popunder, .popup-ad, .overlay-ad, .floating-ad,
-                  ins.adsbygoogle, div[id^="google_ads_"],
-                  .mgid-ad, .taboola-ad, .outbrain-ad
-                  { display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; pointer-events: none !important; }
-                \`;
-                document.head.appendChild(style);
 
                 const originalFetch = window.fetch;
                 window.fetch = function(input, init) {

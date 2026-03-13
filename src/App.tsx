@@ -44,15 +44,13 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
-  const BROWSER_URL = "/proxy-movie/";
+  const BROWSER_URL = "https://onoflix.live/en";
 
   const movieServers = [
     { name: 'Server 1', host: 'vidsrc.to' },
     { name: 'Server 2', host: 'vidsrc.me' },
     { name: 'Server 3', host: 'vidsrc.xyz' },
-    { name: 'Server 4', host: 'embed.su' },
-    { name: 'Server 5', host: 'vidsrc.cc' },
-    { name: 'Server 6', host: 'vidsrc.icu' }
+    { name: 'Server 4', host: 'embed.su' }
   ];
 
   useEffect(() => {
@@ -197,11 +195,7 @@ export default function App() {
             </button>
             <div className="w-px h-4 bg-white/10" />
             <button 
-              onClick={() => {
-                setIsIframeLoading(true);
-                const iframe = document.getElementById('main-browser-iframe') as HTMLIFrameElement;
-                if (iframe) iframe.src = BROWSER_URL;
-              }}
+              onClick={() => window.location.reload()}
               className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:text-[#ff4e00]"
             >
               <Monitor className="w-4 h-4" /> Refresh
@@ -217,22 +211,19 @@ export default function App() {
               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
               className="w-12 h-12 border-4 border-[#ff4e00] border-t-transparent rounded-full mb-4"
             />
-            <p className="text-[#ff4e00] font-bold animate-pulse">Loading...</p>
-            <p className="text-gray-500 text-xs mt-2">Connecting to MovieBox...</p>
+            <p className="text-[#ff4e00] font-bold animate-pulse">Loading Content...</p>
           </div>
         )}
 
         {/* Full Screen Iframe */}
         <div className="flex-1 w-full h-full">
           <iframe 
-            id="main-browser-iframe"
             src={BROWSER_URL}
             className={`w-full h-full border-none bg-black transition-opacity duration-500 ${isIframeLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setIsIframeLoading(false)}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation allow-modals allow-top-navigation-by-user-activation"
           />
         </div>
       </div>
@@ -319,7 +310,7 @@ export default function App() {
       </nav>
 
       {/* Hero Section */}
-      <div className="relative h-[85vh] w-full overflow-hidden mt-0">
+      <div className="relative h-[85vh] w-full overflow-hidden">
         <AnimatePresence>
           {showSearchOverlay && (
             <motion.div 
@@ -842,7 +833,6 @@ export default function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       referrerPolicy="no-referrer"
-                      sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation allow-modals allow-top-navigation-by-user-activation"
                     />
                   )}
                   

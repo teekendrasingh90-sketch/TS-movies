@@ -1,5 +1,5 @@
 {
-  "name": "MovieBox Portal",
-  "description": "A high-speed, ad-free portal for MovieBox content with optimized proxying and multiple movie servers.",
-  "requestFramePermissions": ["geolocation"]
+  "name": "Onoflix Live",
+  "description": "A full-screen portal for Onoflix Live content.",
+  "requestFramePermissions": []
 }

@@ -30,7 +30,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({ movie, onClose }) => {
 
   // Use IMDB ID if available, otherwise fallback to TMDB ID
   const playerId = fullDetails?.imdb_id || movie.id;
-  const embedUrl = `/proxy/player.autoembed.cc/embed/${movie.media_type}/${playerId}`;
+  const embedUrl = `https://player.autoembed.cc/embed/${movie.media_type}/${playerId}`;
 
   return (
     <AnimatePresence>

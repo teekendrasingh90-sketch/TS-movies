@@ -2,260 +2,94 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { createProxyMiddleware, responseInterceptor } from "http-proxy-middleware";
+import axios from "axios";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const WATCHMODE_API_KEY = process.env.WATCHMODE_API_KEY;
 
   app.use(express.json());
 
-  // Comprehensive list of ad and tracking domains - using a Set for O(1) lookup
-  const blockedDomains = new Set([
-    'effectivegatecpm.com',
-    'doubleclick.net',
-    'googleadservices.com',
-    'googlesyndication.com',
-    'adnxs.com',
-    'adform.net',
-    'openx.net',
-    'pubmatic.com',
-    'rubiconproject.com',
-    'casalemedia.com',
-    'criteo.com',
-    'taboola.com',
-    'outbrain.com',
-    'popads.net',
-    'popcash.net',
-    'onclickads.net',
-    'ad-maven.com',
-    'propellerads.com',
-    'juicyads.com',
-    'exoclick.com',
-    'adservice.google.com',
-    'adservice.google.co.in',
-    'analytics.google.com',
-    'click.googleanalytics.com',
-    'stats.g.doubleclick.net',
-    'ad.doubleclick.net',
-    'mads.amazon-adsystem.com',
-    'aax.amazon-adsystem.com',
-    'ad.yieldlab.net',
-    'adserver.adtech.de',
-    'pixel.rubiconproject.com',
-    'optimized-by.rubiconproject.com',
-    'ads.pubmatic.com',
-    'ib.adnxs.com',
-    'secure.adnxs.com',
-    'static.ads-twitter.com',
-    'ads-api.twitter.com',
-    'connect.facebook.net',
-    'pixel.facebook.com',
-    'ads.linkedin.com',
-    'analytics.twitter.com',
-    'ads.pinterest.com',
-    'logx.optimizely.com',
-    'dpm.demdex.net',
-    'everesttech.net',
-    'omtrdc.net',
-    'scorecardresearch.com',
-    'quantserve.com',
-    'pixel.ads.target.com',
-    'ads.yahoo.com',
-    'analytics.yahoo.com',
-    'gemini.yahoo.com',
-    'ad.mail.ru',
-    'an.yandex.ru',
-    'mc.yandex.ru',
-    'yandexmetrica.com',
-    'hotjar.com',
-    'crazyegg.com',
-    'mixpanel.com',
-    'amplitude.com',
-    'segment.io',
-    'intercom.io',
-    'fullstory.com',
-    'logrocket.com',
-    'sentry.io',
-    'bugsnag.com',
-    'newrelic.com',
-    'datadoghq.com',
-    'bet365.com',
-    '1xbet.com',
-    'mostbet.com',
-    'melbet.com',
-    'parimatch.com',
-    'linebet.com',
-    '22bet.com',
-    '888.com',
-    'pokerstars.com',
-    'williamhill.com',
-    'ladbrokes.com',
-    'coral.co.uk',
-    'betfair.com',
-    'paddypower.com',
-    'skybet.com',
-    'unibet.com',
-    'bwin.com',
-    'sportingbet.com',
-    'betway.com',
-    'betvictor.com',
-    'betfred.com',
-    'boylesports.com',
-    'mansionbet.com',
-    'netbet.com',
-    'titanbet.com',
-    'winner.com',
-    'eurogrand.com',
-    '777.com',
-    '888casino.com',
-    '888poker.com',
-    '888sport.com',
-    'casumo.com',
-    'leovegas.com',
-    'mrgreen.com',
-    'rizk.com',
-    'guts.com',
-    'thrills.com',
-    'kaboo.com',
-    'superlenny.com',
-    'betit.com',
-    'mtsecuretrade.com',
-    'giigames.com',
-    'gaminginnovationgroup.com',
-    'everymatrix.com',
-    'softswiss.com',
-    'betconstruct.com',
-    'digitain.com',
-    'sbtech.com',
-    'kambi.com',
-    'openbet.com',
-    'scientificgames.com',
-    'igt.com',
-    'novomatic.com',
-    'playtech.com',
-    'microgaming.co.uk',
-    'netent.com',
-    'evolutiongaming.com',
-    'pragmaticplay.com',
-    'yggdrasilgaming.com',
-    'quickspin.com',
-    'redtiger.com',
-    'blueprintgaming.com',
-    'ashgaming.com',
-    'wms.com',
-    'ballytech.com',
-    'aristocrat.com',
-    'konami.com',
-    'ainsworth.com.au',
-    'gtech.com',
-    'spielo.com',
-    'vgt.net',
-    'cadillacjack.com',
-    'incredibletechnologies.com',
-    'agst.com',
-    'everi.com',
-    'interblockgaming.com',
-    'alfastreet.si',
-    'amatic.com',
-    'egt-interactive.com',
-    'endorphina.com',
-    'gameart.net',
-    'habanerosystems.com',
-    'isoftbet.com',
-    'platipusgaming.com',
-    'spinomenal.com',
-    'tomhorn.eu',
-    'wazdan.com',
-    'belatragames.com',
-    'bgaming.com',
-    'booming-games.com',
-    'evoplay.games',
-    'fugaso.com',
-    'irondogstudio.com',
-    'kalambagames.com',
-    'nolimitcity.com',
-    'pgsoft.com',
-    'pushgaming.com',
-    'relax-gaming.com',
-    'stakelogic.com',
-    'thunderkick.com',
-    'truelab.games'
-  ]);
+  // Watchmode API Routes
+  app.get("/api/movies/search", async (req, res) => {
+    try {
+      const { query } = req.query;
+      if (!query) return res.status(400).json({ error: "Query is required" });
+      
+      const response = await axios.get(`https://api.watchmode.com/v1/search/`, {
+        params: {
+          apiKey: WATCHMODE_API_KEY,
+          search_field: "name",
+          search_value: query,
+          types: "movie"
+        }
+      });
+      res.json(response.data);
+    } catch (error) {
+      console.error("Watchmode Search Error:", error);
+      res.status(500).json({ error: "Failed to fetch movies" });
+    }
+  });
+
+  app.get("/api/movies/trending", async (req, res) => {
+    try {
+      const response = await axios.get(`https://api.watchmode.com/v1/list-titles/`, {
+        params: {
+          apiKey: WATCHMODE_API_KEY,
+          limit: 20,
+          types: "movie",
+          sort_by: "popularity_desc"
+        }
+      });
+      res.json(response.data);
+    } catch (error) {
+      console.error("Watchmode Trending Error:", error);
+      res.status(500).json({ error: "Failed to fetch trending movies" });
+    }
+  });
+
+  app.get("/api/movies/:id/details", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const response = await axios.get(`https://api.watchmode.com/v1/title/${id}/details/`, {
+        params: {
+          apiKey: WATCHMODE_API_KEY,
+          append_to_response: "sources"
+        }
+      });
+      res.json(response.data);
+    } catch (error) {
+      console.error("Watchmode Details Error:", error);
+      res.status(500).json({ error: "Failed to fetch movie details" });
+    }
+  });
 
   // Proxy to bypass X-Frame-Options and fix relative paths
-  const movieProxy = createProxyMiddleware({
-    target: 'https://themoviebox.org',
-    router: (req) => {
-      if (req.query && req.query.remote_url) {
-        try {
-          const remoteUrl = req.query.remote_url as string;
-          const parsed = new URL(remoteUrl);
-          return parsed.origin;
-        } catch (e) {}
-      }
-      return 'https://themoviebox.org';
-    },
+  const onoflixProxy = createProxyMiddleware({
+    target: 'https://onoflix.live',
     changeOrigin: true,
     secure: false,
     followRedirects: true,
     selfHandleResponse: true,
-    ws: true,
-    proxyTimeout: 15000,
-    timeout: 15000,
+    ws: true, // Enable WebSocket proxying
+    pathRewrite: {
+      '^/proxy-onoflix': '',
+    },
     on: {
       proxyReq: (proxyReq, req, res) => {
-        const url = req.url || '';
-        
-        // Dynamic target handling for any remote URL
-        if (req.query && req.query.remote_url) {
-          const remoteUrl = req.query.remote_url as string;
-          try {
-            const parsed = new URL(remoteUrl);
-            proxyReq.path = parsed.pathname + parsed.search;
-            // Host header is handled by changeOrigin + router return value usually, 
-            // but we can be explicit if needed.
-          } catch (e) {}
-        }
-
-        // Allow all images and media
-        const isMedia = /\.(jpg|jpeg|png|gif|webp|svg|mp4|m3u8|ts|m4s|mpd)$/i.test(url);
-        
-        // Extract domain for faster lookup
-        try {
-          const urlObj = new URL(url, 'https://themoviebox.org');
-          const hostname = urlObj.hostname.replace('www.', '');
-          
-          // If it's media from the main domain, don't block it even if it matches keywords
-          if (hostname === 'themoviebox.org' && isMedia) {
-            // Let it pass
-          } else if (blockedDomains.has(hostname)) {
-            proxyReq.destroy();
-            return;
-          }
-        } catch (e) {
-          if ([...blockedDomains].some(domain => url.includes(domain)) && !isMedia) {
-            proxyReq.destroy();
-            return;
-          }
-        }
-
-        const adKeywords = ['/ad-server/', '/popunder', '/popup', '/click-track', '/tracking'];
-        if (adKeywords.some(keyword => url.toLowerCase().includes(keyword)) && !isMedia) {
-          proxyReq.destroy();
-          return;
-        }
-
-        proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-        proxyReq.setHeader('Origin', 'https://themoviebox.org');
-        proxyReq.setHeader('Referer', 'https://themoviebox.org/');
-        proxyReq.setHeader('Accept', '*/*');
+        proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        proxyReq.setHeader('referer', 'https://onoflix.live/');
+        proxyReq.setHeader('accept-encoding', 'identity');
       },
       proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
+        // Remove security headers
         res.removeHeader('X-Frame-Options');
         res.removeHeader('Content-Security-Policy');
         res.removeHeader('Frame-Options');
         res.removeHeader('content-security-policy-report-only');
 
+        // Rewrite Set-Cookie headers to remove Domain and Secure if needed
         const setCookie = proxyRes.headers['set-cookie'];
         if (setCookie) {
           res.setHeader('set-cookie', setCookie.map(cookie => 
@@ -265,195 +99,52 @@ async function startServer() {
           ));
         }
 
-        const contentType = proxyRes.headers['content-type'] || '';
-        if (contentType.includes('text/html')) {
+        const contentType = proxyRes.headers['content-type'];
+        if (contentType && contentType.includes('text/html')) {
           let html = responseBuffer.toString('utf8');
           
+          // Inject script to intercept all requests and redirect them to our proxy
           const injection = `
-            <style>
-              iframe[src*="ads"], iframe[src*="doubleclick"], div[id*="ad-"], div[class*="ad-"], 
-              div[id*="google_ads"], div[class*="google_ads"], ins.adsbygoogle, .ad-container,
-              .ads-container, #ad-container, #ads-container, .popunder, .popup-ad,
-              [id^="ad-"], [class^="ad-"], [id*="popunder"], [class*="popunder"] {
-                display: none !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                width: 0 !important;
-              }
-              #proxy-home-btn {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                z-index: 999999;
-                background: #ff4757;
-                color: white;
-                padding: 10px 20px;
-                border-radius: 50px;
-                text-decoration: none;
-                font-family: sans-serif;
-                font-weight: bold;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                transition: transform 0.2s;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-              }
-              #proxy-home-btn:hover {
-                transform: scale(1.1);
-                background: #ff6b81;
-              }
-            </style>
             <script>
               (function() {
-                // Aggressive Anti-Frame-Break
-                const blockTopNav = () => {
-                  window.onbeforeunload = function() {
-                    return "Are you sure?"; // This blocks automatic redirects
-                  };
-                  
-                  // Neutralize top and parent
-                  Object.defineProperty(window, 'top', { get: function() { return window.self; } });
-                  Object.defineProperty(window, 'parent', { get: function() { return window.self; } });
-                };
-                blockTopNav();
-
-                // Create Home Button
-                const homeBtn = document.createElement('a');
-                homeBtn.id = 'proxy-home-btn';
-                homeBtn.href = '/proxy-movie/';
-                homeBtn.innerHTML = '<span>🏠</span> Home';
-                document.body.appendChild(homeBtn);
-
-                // Create Fix Player Button (only on watch pages)
-                if (window.location.pathname.includes('/movies/')) {
-                  const fixBtn = document.createElement('button');
-                  fixBtn.id = 'proxy-fix-btn';
-                  fixBtn.style.cssText = 'position:fixed;bottom:70px;right:20px;z-index:999999;background:#1e90ff;color:white;padding:10px 20px;border-radius:50px;border:none;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
-                  fixBtn.innerHTML = '<span>🔧</span> Fix Player';
-                  fixBtn.onclick = () => {
-                    document.querySelectorAll('iframe').forEach(f => {
-                      if (f.src.includes('ads') || f.src.includes('doubleclick')) f.remove();
-                      else f.src = f.src; // Reload player iframes
-                    });
-                    // Remove overlays
-                    document.querySelectorAll('div').forEach(div => {
-                      const style = window.getComputedStyle(div);
-                      if (style.position === 'fixed' && style.zIndex > 1000 && !div.id.startsWith('proxy-')) {
-                        div.remove();
-                      }
-                    });
-                  };
-                  document.body.appendChild(fixBtn);
-                }
-
-                // Block popups and window.open
-                window.open = function() { return { focus: () => {}, close: () => {} }; };
-
-                const PROXY_PREFIX = '/proxy-movie';
-                const TARGET_DOMAIN = 'themoviebox.org';
-                const BLOCKED_DOMAINS = ${JSON.stringify([...blockedDomains])};
+                // Frame-buster buster
+                try {
+                  if (window.top !== window.self) {
+                    window.top = window.self;
+                  }
+                } catch (e) {}
+                
+                const PROXY_PREFIX = '/proxy-onoflix';
+                const TARGET_DOMAIN = 'onoflix.live';
 
                 function wrapUrl(url) {
-                  if (!url || typeof url !== 'string') return url;
+                  if (!url) return url;
+                  if (typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
-                  
-                  // Handle srcset
-                  if (url.includes(',') && (url.includes(' w') || url.includes(' x'))) {
-                    return url.split(',').map(part => {
-                      const [u, size] = part.trim().split(/\s+/);
-                      return wrapUrl(u) + (size ? ' ' + size : '');
-                    }).join(', ');
-                  }
-
-                  // Ad blocker
-                  if (BLOCKED_DOMAINS.some(domain => url.includes(domain))) return 'about:blank';
                   
                   if (url.startsWith(PROXY_PREFIX)) return url;
                   
                   try {
                     const u = new URL(url, window.location.href);
-                    
-                    // If it's the same origin but not proxied
-                    if (u.origin === window.location.origin) {
-                      if (!u.pathname.startsWith(PROXY_PREFIX)) {
-                        return PROXY_PREFIX + u.pathname + u.search + u.hash;
-                      }
-                      return url;
+                    if (u.hostname === TARGET_DOMAIN || u.hostname.endsWith('.' + TARGET_DOMAIN)) {
+                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
                     }
-
-                    // For any other domain, we proxy it using remote_url
-                    // This ensures all external links stay within our server
-                    return PROXY_PREFIX + '?remote_url=' + encodeURIComponent(url);
+                    if (u.origin === window.location.origin && !u.pathname.startsWith(PROXY_PREFIX)) {
+                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
+                    }
                   } catch(e) {}
+                  
                   return url;
                 }
 
-                // Intercept Navigation
-                window.addEventListener('click', e => {
-                  const link = e.target.closest('a');
-                  if (link && link.href) {
-                    if (link.id === 'proxy-home-btn') return;
-                    // Force navigation to stay in current frame
-                    link.target = '_self';
-                    
-                    const wrapped = wrapUrl(link.href);
-                    if (wrapped !== link.href) {
-                      link.href = wrapped;
-                    }
-                  }
-                  
-                  // Handle buttons that might act as links
-                  const btn = e.target.closest('button, div[role="button"], .btn, .button');
-                  if (btn && !btn.id.startsWith('proxy-')) {
-                    // Some sites use data-href or similar
-                    const possibleHref = btn.getAttribute('data-href') || btn.getAttribute('data-url');
-                    if (possibleHref) {
-                      window.location.href = wrapUrl(possibleHref);
-                    }
-                  }
-                }, true);
-
-                // Intercept Location Methods
-                try {
-                  const originalAssign = window.location.assign;
-                  window.location.assign = function(url) {
-                    return originalAssign.call(window.location, wrapUrl(url));
-                  };
-                  const originalReplace = window.location.replace;
-                  window.location.replace = function(url) {
-                    return originalReplace.call(window.location, wrapUrl(url));
-                  };
-                } catch (e) {}
-
-                // MutationObserver to fix dynamic links
-                const observer = new MutationObserver(mutations => {
-                  mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                      if (node.nodeType === 1) {
-                        const links = node.querySelectorAll('a');
-                        links.forEach(l => {
-                          if (l.href) l.href = wrapUrl(l.href);
-                          l.target = '_self';
-                        });
-                      }
-                    });
-                  });
-                });
-                observer.observe(document.documentElement, { childList: true, subtree: true });
-
-                // Intercept Forms
-                window.addEventListener('submit', e => {
-                  const form = e.target;
-                  if (form.action) {
-                    form.action = wrapUrl(form.action);
-                  }
-                }, true);
-
-                // Intercept Fetch/XHR
                 const originalFetch = window.fetch;
                 window.fetch = function(input, init) {
-                  if (typeof input === 'string') input = wrapUrl(input);
-                  else if (input instanceof Request) input = new Request(wrapUrl(input.url), input);
+                  if (typeof input === 'string') {
+                    input = wrapUrl(input);
+                  } else if (input instanceof Request) {
+                    const newUrl = wrapUrl(input.url);
+                    input = new Request(newUrl, input);
+                  }
                   return originalFetch.call(this, input, init);
                 };
 
@@ -462,72 +153,39 @@ async function startServer() {
                   return originalOpen.call(this, method, wrapUrl(url), ...args);
                 };
 
-                // Intercept History
-                const originalPushState = history.pushState;
-                history.pushState = function(state, title, url) {
-                  return originalPushState.call(this, state, title, wrapUrl(url));
-                };
-                const originalReplaceState = history.replaceState;
-                history.replaceState = function(state, title, url) {
-                  return originalReplaceState.call(this, state, title, wrapUrl(url));
-                };
-
-                // Intercept Element Creation
                 const originalCreateElement = document.createElement;
                 document.createElement = function(tagName, options) {
                   const el = originalCreateElement.call(this, tagName, options);
                   const tag = tagName.toLowerCase();
-                  const attrs = {
-                    'img': 'src', 'script': 'src', 'iframe': 'src', 
-                    'link': 'href', 'source': 'src', 'video': 'src', 
-                    'audio': 'src', 'form': 'action', 'a': 'href'
-                  };
-                  
-                  if (attrs[tag]) {
-                    const attr = attrs[tag];
-                    const descriptor = Object.getOwnPropertyDescriptor(el.constructor.prototype, attr) || 
-                                     Object.getOwnPropertyDescriptor(HTMLElement.prototype, attr);
-                    if (descriptor && descriptor.set) {
+                  if (tag === 'img' || tag === 'script' || tag === 'iframe' || tag === 'link' || tag === 'source' || tag === 'video' || tag === 'audio') {
+                    const attr = (tag === 'link') ? 'href' : 'src';
+                    const originalSetter = Object.getOwnPropertyDescriptor(el.constructor.prototype, attr) || 
+                                         Object.getOwnPropertyDescriptor(HTMLElement.prototype, attr);
+                    if (originalSetter && originalSetter.set) {
                       Object.defineProperty(el, attr, {
-                        set: function(val) { descriptor.set.call(this, wrapUrl(val)); },
-                        get: function() { return descriptor.get.call(this); },
+                        set: function(val) {
+                          originalSetter.set.call(this, wrapUrl(val));
+                        },
+                        get: function() {
+                          return originalSetter.get.call(this);
+                        },
                         configurable: true
                       });
                     }
                   }
                   return el;
                 };
-
-                setInterval(() => {
-                  ['iframe[src*="ads"]', 'iframe[src*="doubleclick"]', 'ins.adsbygoogle', '.ad-container', '.ads-container', '#ad-container', '#ads-container', '.popunder', '.popup-ad']
-                  .forEach(s => document.querySelectorAll(s).forEach(el => el.remove()));
-                }, 2000);
               })();
             </script>
           `;
           
-          // Advanced HTML Rewriting
-          // 1. Rewrite root-relative paths
-          html = html.replace(/(src|href|action|data-src|data-href)=["']\/(?!\/)/g, '$1="/proxy-movie/');
+          // Replace paths in the HTML
+          html = html.replace(/(src|href|action)=["']\/(?!\/)/g, '$1="' + '/proxy-onoflix/');
           
-          // 2. Rewrite srcset
-          html = html.replace(/srcset=["']([^"']+)["']/g, (match, srcset) => {
-            const rewritten = srcset.split(',').map((part: string) => {
-              const trimmed = part.trim();
-              if (trimmed.startsWith('/')) return '/proxy-movie' + trimmed;
-              return trimmed;
-            }).join(', ');
-            return `srcset="${rewritten}"`;
-          });
-
-          // 3. Rewrite absolute URLs to stay within proxy
-          // This regex finds http/https links that are NOT already proxied
-          html = html.replace(/(src|href|action|data-src|data-href)=["'](https?:\/\/[^"']+)["']/g, (match, attr, url) => {
-            if (url.includes('/proxy-movie')) return match;
-            return `${attr}="/proxy-movie?remote_url=${encodeURIComponent(url)}"`;
-          });
+          // Replace absolute URLs to the target domain
+          const domainRegex = /https?:\/\/(www\.)?onoflix\.live/gi;
+          html = html.replace(domainRegex, '/proxy-onoflix');
           
-          // 4. Inject our script
           html = html.replace('<head>', '<head>' + injection);
           
           return html;
@@ -537,7 +195,7 @@ async function startServer() {
     }
   });
 
-  app.use('/proxy-movie', movieProxy);
+  app.use('/proxy-onoflix', onoflixProxy);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -559,8 +217,8 @@ async function startServer() {
 
   // Handle WebSocket upgrades
   server.on('upgrade', (req, socket, head) => {
-    if (req.url?.startsWith('/proxy-movie')) {
-      (movieProxy as any).upgrade(req, socket, head);
+    if (req.url?.startsWith('/proxy-onoflix')) {
+      (onoflixProxy as any).upgrade(req, socket, head);
     }
   });
 }

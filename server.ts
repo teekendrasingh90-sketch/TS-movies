@@ -185,6 +185,16 @@ async function startServer() {
   // Proxy to bypass X-Frame-Options and fix relative paths
   const movieProxy = createProxyMiddleware({
     target: 'https://themoviebox.org',
+    router: (req) => {
+      if (req.query && req.query.remote_url) {
+        try {
+          const remoteUrl = req.query.remote_url as string;
+          const parsed = new URL(remoteUrl);
+          return parsed.origin;
+        } catch (e) {}
+      }
+      return 'https://themoviebox.org';
+    },
     changeOrigin: true,
     secure: false,
     followRedirects: true,
@@ -196,18 +206,19 @@ async function startServer() {
       proxyReq: (proxyReq, req, res) => {
         const url = req.url || '';
         
-        // Dynamic target handling for movie players
+        // Dynamic target handling for any remote URL
         if (req.query && req.query.remote_url) {
           const remoteUrl = req.query.remote_url as string;
           try {
             const parsed = new URL(remoteUrl);
             proxyReq.path = parsed.pathname + parsed.search;
-            proxyReq.setHeader('host', parsed.host);
+            // Host header is handled by changeOrigin + router return value usually, 
+            // but we can be explicit if needed.
           } catch (e) {}
         }
 
-        // Allow all images and media from the target domain or common CDNs
-        const isMedia = /\.(jpg|jpeg|png|gif|webp|svg|mp4|m3u8|ts)$/i.test(url);
+        // Allow all images and media
+        const isMedia = /\.(jpg|jpeg|png|gif|webp|svg|mp4|m3u8|ts|m4s|mpd)$/i.test(url);
         
         // Extract domain for faster lookup
         try {
@@ -362,18 +373,17 @@ async function startServer() {
                   try {
                     const u = new URL(url, window.location.href);
                     
-                    // If it's a movie player domain (like vidsrc), wrap it specially
-                    const moviePlayerDomains = ['vidsrc.to', 'vidsrc.me', '2embed.to', 'embed.su'];
-                    if (moviePlayerDomains.some(d => u.hostname.includes(d))) {
-                      return PROXY_PREFIX + '?remote_url=' + encodeURIComponent(url);
+                    // If it's the same origin but not proxied
+                    if (u.origin === window.location.origin) {
+                      if (!u.pathname.startsWith(PROXY_PREFIX)) {
+                        return PROXY_PREFIX + u.pathname + u.search + u.hash;
+                      }
+                      return url;
                     }
 
-                    if (u.hostname === TARGET_DOMAIN || u.hostname.endsWith('.' + TARGET_DOMAIN)) {
-                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
-                    }
-                    if (u.origin === window.location.origin && !u.pathname.startsWith(PROXY_PREFIX)) {
-                      return PROXY_PREFIX + u.pathname + u.search + u.hash;
-                    }
+                    // For any other domain, we proxy it using remote_url
+                    // This ensures all external links stay within our server
+                    return PROXY_PREFIX + '?remote_url=' + encodeURIComponent(url);
                   } catch(e) {}
                   return url;
                 }
@@ -510,11 +520,14 @@ async function startServer() {
             return `srcset="${rewritten}"`;
           });
 
-          // 3. Rewrite absolute URLs to the target domain
-          const domainRegex = /https?:\/\/(www\.)?themoviebox\.org/gi;
-          html = html.replace(domainRegex, '/proxy-movie');
+          // 3. Rewrite absolute URLs to stay within proxy
+          // This regex finds http/https links that are NOT already proxied
+          html = html.replace(/(src|href|action|data-src|data-href)=["'](https?:\/\/[^"']+)["']/g, (match, attr, url) => {
+            if (url.includes('/proxy-movie')) return match;
+            return `${attr}="/proxy-movie?remote_url=${encodeURIComponent(url)}"`;
+          });
           
-          // 3. Inject our script
+          // 4. Inject our script
           html = html.replace('<head>', '<head>' + injection);
           
           return html;

@@ -44,7 +44,7 @@ export default function App() {
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(true);
 
-  const BROWSER_URL = "/proxy-movie/?utm_source=";
+  const BROWSER_URL = "/proxy-movie/";
 
   const movieServers = [
     { name: 'Server 1', host: 'vidsrc.to' },

@@ -283,6 +283,14 @@ async function startServer() {
                   if (!url || typeof url !== 'string') return url;
                   if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:')) return url;
                   
+                  // Handle srcset
+                  if (url.includes(',') && (url.includes(' w') || url.includes(' x'))) {
+                    return url.split(',').map(part => {
+                      const [u, size] = part.trim().split(/\s+/);
+                      return wrapUrl(u) + (size ? ' ' + size : '');
+                    }).join(', ');
+                  }
+
                   // Ad blocker
                   if (BLOCKED_DOMAINS.some(domain => url.includes(domain))) return 'about:blank';
                   
@@ -379,9 +387,19 @@ async function startServer() {
           
           // Advanced HTML Rewriting
           // 1. Rewrite root-relative paths
-          html = html.replace(/(src|href|action|srcset|data-src|data-href)=["']\/(?!\/)/g, '$1="/proxy-movie/');
+          html = html.replace(/(src|href|action|data-src|data-href)=["']\/(?!\/)/g, '$1="/proxy-movie/');
           
-          // 2. Rewrite absolute URLs to the target domain
+          // 2. Rewrite srcset
+          html = html.replace(/srcset=["']([^"']+)["']/g, (match, srcset) => {
+            const rewritten = srcset.split(',').map((part: string) => {
+              const trimmed = part.trim();
+              if (trimmed.startsWith('/')) return '/proxy-movie' + trimmed;
+              return trimmed;
+            }).join(', ');
+            return `srcset="${rewritten}"`;
+          });
+
+          // 3. Rewrite absolute URLs to the target domain
           const domainRegex = /https?:\/\/(www\.)?themoviebox\.org/gi;
           html = html.replace(domainRegex, '/proxy-movie');
           

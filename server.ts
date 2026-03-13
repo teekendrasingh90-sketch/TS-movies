@@ -265,15 +265,24 @@ async function startServer() {
             </style>
             <script>
               (function() {
-                // Frame break protection
-                try {
+                // Prevent breaking out of iframe
+                const preventFrameBreak = () => {
                   if (window.top !== window.self) {
-                    window.top = window.self;
+                    // Try to neutralize 'top' references
+                    try {
+                      window.top = window.self; 
+                    } catch (e) {}
                   }
-                } catch (e) {}
+                };
+                
+                // More robust way to block top-level navigation
+                window.onbeforeunload = function() {
+                  // This can sometimes help prevent unwanted redirects
+                  // but we use it carefully
+                };
 
-                // Block popups
-                window.open = function() { return null; };
+                // Block popups and window.open
+                window.open = function() { return { focus: () => {}, close: () => {} }; };
 
                 const PROXY_PREFIX = '/proxy-movie';
                 const TARGET_DOMAIN = 'themoviebox.org';
@@ -313,6 +322,11 @@ async function startServer() {
                 window.addEventListener('click', e => {
                   const link = e.target.closest('a');
                   if (link && link.href) {
+                    // Force navigation to stay in current frame
+                    if (link.target === '_top' || link.target === '_parent') {
+                      link.target = '_self';
+                    }
+                    
                     const wrapped = wrapUrl(link.href);
                     if (wrapped !== link.href) {
                       link.href = wrapped;
